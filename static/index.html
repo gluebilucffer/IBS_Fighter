@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IBS Fighter</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>IBS Fighter</h1>
+        <p>排便、饮食、用药、运动与睡眠追踪</p>
+      </div>
+      <label class="date-control">
+        <span>日期</span>
+        <input id="selected-date" type="date" />
+      </label>
+    </header>
+
+    <main>
+      <section class="summary-grid" aria-label="今日概览">
+        <article class="summary-card">
+          <span>排便</span>
+          <strong id="summary-bowel">0</strong>
+          <small>平均等级 <b id="summary-bristol">-</b></small>
+        </article>
+        <article class="summary-card">
+          <span>饮食</span>
+          <strong id="summary-meals">0</strong>
+          <small>条记录</small>
+        </article>
+        <article class="summary-card">
+          <span>用药</span>
+          <strong id="summary-medications">0</strong>
+          <small>条记录</small>
+        </article>
+        <article class="summary-card">
+          <span>运动</span>
+          <strong id="summary-exercise">0</strong>
+          <small>分钟</small>
+        </article>
+        <article class="summary-card">
+          <span>睡眠</span>
+          <strong id="summary-sleep">0</strong>
+          <small>分钟</small>
+        </article>
+      </section>
+
+      <nav class="tabs" aria-label="记录分类">
+        <button class="tab-button active" type="button" data-tab="bowel_movements">排便</button>
+        <button class="tab-button" type="button" data-tab="meals">饮食</button>
+        <button class="tab-button" type="button" data-tab="medications">用药</button>
+        <button class="tab-button" type="button" data-tab="exercises">运动</button>
+        <button class="tab-button" type="button" data-tab="sleep_entries">睡眠</button>
+        <button class="tab-button" type="button" data-tab="reports">报表</button>
+      </nav>
+
+      <section class="tab-panels">
+        <section class="tab-panel active" data-tab-panel="bowel_movements">
+          <article class="panel" data-table="bowel_movements">
+            <div class="panel-heading">
+              <h2>排便</h2>
+              <button class="ghost" type="button" data-reset="bowel_movements">清空</button>
+            </div>
+            <form data-form="bowel_movements">
+              <input name="id" type="hidden" />
+              <label>
+                时间
+                <input name="occurred_at" type="datetime-local" required />
+              </label>
+              <label>
+                布里斯托等级
+                <select name="bristol_type" required>
+                  <option value="1">1 硬球状</option>
+                  <option value="2">2 结块香肠状</option>
+                  <option value="3">3 表面裂纹</option>
+                  <option value="4" selected>4 光滑柔软</option>
+                  <option value="5">5 软块</option>
+                  <option value="6">6 糊状</option>
+                  <option value="7">7 水样</option>
+                </select>
+              </label>
+              <div class="two-col">
+                <label>
+                  急迫感
+                  <input name="urgency" type="number" min="0" max="5" step="1" />
+                </label>
+                <label>
+                  地点
+                  <input name="location" type="text" placeholder="家 / 公司" />
+                </label>
+              </div>
+              <label>
+                颜色
+                <select name="color">
+                  <option value="">未记录</option>
+                  <option>棕色</option>
+                  <option>深棕色</option>
+                  <option>浅棕 / 黄色</option>
+                  <option>绿色</option>
+                  <option>黑色</option>
+                  <option>红色 / 带血</option>
+                  <option>灰白色</option>
+                  <option>其他</option>
+                </select>
+              </label>
+              <label>
+                备注
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+              <button type="submit">保存排便</button>
+            </form>
+            <div class="record-list" data-list="bowel_movements"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="meals">
+          <article class="panel" data-table="meals">
+            <div class="panel-heading">
+              <h2>饮食</h2>
+              <button class="ghost" type="button" data-reset="meals">清空</button>
+            </div>
+            <form data-form="meals">
+              <input name="id" type="hidden" />
+              <label>
+                时间
+                <input name="eaten_at" type="datetime-local" required />
+              </label>
+              <div class="two-col">
+                <label>
+                  餐别
+                  <select name="meal_type">
+                    <option value="">未分类</option>
+                    <option>早餐</option>
+                    <option>午餐</option>
+                    <option>晚餐</option>
+                    <option>加餐</option>
+                  </select>
+                </label>
+                <label>
+                  地点
+                  <input name="location" type="text" list="meal-location-history" placeholder="家 / 外食" />
+                </label>
+              </div>
+              <datalist id="meal-location-history"></datalist>
+              <label>
+                照片
+                <input name="photo" type="file" accept="image/*" />
+              </label>
+              <label>
+                文字描述
+                <textarea name="foods" rows="3" placeholder="简单写一下，不需要拆很细"></textarea>
+              </label>
+              <label>
+                饭后反应
+                <textarea name="symptoms_after" rows="2"></textarea>
+              </label>
+              <label>
+                备注
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+              <button type="submit">保存饮食</button>
+            </form>
+            <div class="record-list" data-list="meals"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel medication-layout" data-tab-panel="medications">
+          <article class="panel" data-table="medication_products">
+            <div class="panel-heading">
+              <h2>药物登记</h2>
+              <button class="ghost" type="button" data-reset="medication_products">清空</button>
+            </div>
+            <form data-form="medication_products">
+              <input name="id" type="hidden" />
+              <label>
+                药物名称
+                <input name="product_name" type="text" required />
+              </label>
+              <label>
+                类型
+                <select name="product_type" required>
+                  <option value="">选择类型</option>
+                  <option>处方药</option>
+                  <option>益生菌</option>
+                  <option>补剂</option>
+                </select>
+              </label>
+              <label>
+                单位
+                <input name="default_unit" type="text" placeholder="粒 / 袋 / ml" required />
+              </label>
+              <label>
+                成分
+                <textarea name="ingredients" rows="3"></textarea>
+              </label>
+              <button type="submit">保存药物</button>
+            </form>
+            <div class="record-list" data-list="medication_products"></div>
+          </article>
+
+          <article class="panel" data-table="medications">
+            <div class="panel-heading">
+              <h2>用药记录</h2>
+              <button class="ghost" type="button" data-reset="medications">清空</button>
+            </div>
+            <form data-form="medications">
+              <input name="id" type="hidden" />
+              <label>
+                时间
+                <input name="taken_at" type="datetime-local" required />
+              </label>
+              <div class="field-group">
+                <span class="field-title">药物</span>
+                <div class="medication-picker" data-medication-picker>
+                  <div class="empty">先登记药物</div>
+                </div>
+              </div>
+              <label>
+                时间关系
+                <select name="timing_relation">
+                  <option value="">未记录</option>
+                  <option>饭前</option>
+                  <option>饭中</option>
+                  <option>饭后</option>
+                  <option>睡前</option>
+                  <option>空腹</option>
+                </select>
+              </label>
+              <label>
+                备注
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+              <button type="submit">保存用药</button>
+            </form>
+            <div class="record-list" data-list="medications"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="exercises">
+          <article class="panel" data-table="exercises">
+            <div class="panel-heading">
+              <h2>运动</h2>
+              <button class="ghost" type="button" data-reset="exercises">清空</button>
+            </div>
+            <form data-form="exercises">
+              <input name="id" type="hidden" />
+              <label>
+                时间
+                <input name="started_at" type="datetime-local" required />
+              </label>
+              <label>
+                活动
+                <input name="activity_type" type="text" placeholder="散步 / 跑步 / 力量 / 工作" required />
+              </label>
+              <div class="two-col">
+                <label>
+                  分钟
+                  <input name="duration_minutes" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  强度
+                  <select name="intensity">
+                    <option value="">未记录</option>
+                    <option>低</option>
+                    <option>中</option>
+                    <option>高</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+              <button type="submit">保存运动</button>
+            </form>
+            <div class="record-list" data-list="exercises"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="sleep_entries">
+          <article class="panel" data-table="sleep_entries">
+            <div class="panel-heading">
+              <h2>睡眠</h2>
+              <button class="ghost" type="button" data-reset="sleep_entries">清空</button>
+            </div>
+            <form data-form="sleep_entries">
+              <input name="id" type="hidden" />
+              <input name="source" type="hidden" value="manual" />
+              <label>
+                睡眠日期
+                <input name="sleep_date" type="date" required />
+              </label>
+              <div class="two-col">
+                <label>
+                  入睡时间
+                  <input name="started_at" type="datetime-local" />
+                </label>
+                <label>
+                  醒来时间
+                  <input name="ended_at" type="datetime-local" />
+                </label>
+              </div>
+              <div class="two-col">
+                <label>
+                  分钟
+                  <input name="duration_minutes" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  质量
+                  <select name="quality">
+                    <option value="">未记录</option>
+                    <option>好</option>
+                    <option>一般</option>
+                    <option>差</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                备注
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+              <button type="submit">保存睡眠</button>
+            </form>
+            <div class="record-list" data-list="sleep_entries"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="reports">
+          <article class="report-panel">
+            <div class="panel-heading report-heading">
+              <div>
+                <h2>排便报表</h2>
+                <p id="report-range">正在读取记录</p>
+              </div>
+              <div class="segmented-control" aria-label="报表周期">
+                <button class="active" type="button" data-report-days="7">7 天</button>
+                <button type="button" data-report-days="30">30 天</button>
+              </div>
+            </div>
+
+            <section class="report-summary-grid" aria-label="周期概览">
+              <article class="summary-card">
+                <span>总次数</span>
+                <strong id="report-total-events">0</strong>
+                <small>这个周期的排便记录</small>
+              </article>
+              <article class="summary-card">
+                <span>平均每天</span>
+                <strong id="report-avg-events-day">0</strong>
+                <small>按完整周期计算</small>
+              </article>
+              <article class="summary-card">
+                <span>平均等级</span>
+                <strong id="report-avg-bristol">-</strong>
+                <small>布里斯托 1-7</small>
+              </article>
+              <article class="summary-card">
+                <span>相对正常</span>
+                <strong id="report-normal-rate">0%</strong>
+                <small>3-5 级占比</small>
+              </article>
+              <article class="summary-card">
+                <span>偏硬/偏稀</span>
+                <strong id="report-abnormal-count">0</strong>
+                <small>1-2 或 6-7 级</small>
+              </article>
+              <article class="summary-card">
+                <span>急迫感</span>
+                <strong id="report-urgent-count">0</strong>
+                <small>急迫感 3 分以上</small>
+              </article>
+            </section>
+
+            <section class="report-grid" aria-label="趋势图">
+              <article class="chart-card wide">
+                <div class="chart-heading">
+                  <h3>每日趋势</h3>
+                  <span>次数、平均等级、异常提示</span>
+                </div>
+                <div class="bar-chart" id="report-bowel-chart"></div>
+              </article>
+
+              <article class="chart-card">
+                <div class="chart-heading">
+                  <h3>布里斯托分布</h3>
+                  <span>1 到 7 级</span>
+                </div>
+                <div class="bar-chart compact" id="report-bristol-chart"></div>
+              </article>
+
+              <article class="chart-card">
+                <div class="chart-heading">
+                  <h3>形态归类</h3>
+                  <span>偏硬 / 正常 / 偏稀</span>
+                </div>
+                <div class="bar-chart compact" id="report-quality-chart"></div>
+              </article>
+
+              <article class="chart-card">
+                <div class="chart-heading">
+                  <h3>颜色分布</h3>
+                  <span>按记录次数</span>
+                </div>
+                <div class="rank-list" id="report-color-list"></div>
+              </article>
+
+              <article class="chart-card">
+                <div class="chart-heading">
+                  <h3>地点分布</h3>
+                  <span>按记录次数</span>
+                </div>
+                <div class="rank-list" id="report-location-list"></div>
+              </article>
+
+              <article class="chart-card">
+                <div class="chart-heading">
+                  <h3>无记录日期</h3>
+                  <span>需要区分未记录还是无排便</span>
+                </div>
+                <div class="date-chip-list" id="report-no-record-days"></div>
+              </article>
+
+              <article class="chart-card wide">
+                <div class="chart-heading">
+                  <h3>需要留意的日期</h3>
+                  <span>异常等级、急迫感或一天多次排便</span>
+                </div>
+                <div class="attention-list" id="report-attention-days"></div>
+              </article>
+
+              <article class="chart-card wide">
+                <div class="chart-heading">
+                  <h3>初步解读</h3>
+                  <span>只基于排便记录生成</span>
+                </div>
+                <div class="insight-list" id="report-insights"></div>
+              </article>
+            </section>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
