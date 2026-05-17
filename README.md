@@ -12,6 +12,8 @@
 
 ## 运行
 
+仅在这台电脑上使用：
+
 ```bash
 python3 app.py
 ```
@@ -21,6 +23,20 @@ python3 app.py
 ```text
 http://127.0.0.1:8765
 ```
+
+同一 Wi-Fi 下用手机访问：
+
+```bash
+./start.sh
+```
+
+然后在手机浏览器打开：
+
+```text
+http://你的Mac局域网IP:8765
+```
+
+这个阶段还没有登录系统。使用 `./start.sh` 会让同一局域网里的设备可以访问，请只在可信 Wi-Fi 下使用。
 
 数据库文件会自动创建在：
 
@@ -42,14 +58,32 @@ uploads/
 
 ```text
 IBS Fighter/
-├── app.py              # 本地 Web 服务、API 路由、数据增删改查
-├── reports.py          # 分类报表计算，目前包含排便和用药
+├── app.py              # 启动入口
+├── ibs_fighter/
+│   ├── config.py       # 路径、端口、上传限制等配置
+│   ├── db.py           # SQLite 初始化和迁移
+│   ├── models.py       # 表字段配置
+│   ├── crud.py         # 数据增删改查和今日汇总
+│   ├── uploads.py      # 饮食照片保存
+│   ├── reports.py      # 分类报表计算，目前包含排便和用药
+│   ├── server.py       # 本地 Web 服务和 API 路由
+│   ├── auth.py         # 之后接 Google 账号登录
+│   └── drive_backup.py # 之后接 Google Drive 备份
 ├── schema.sql          # SQLite 建表和索引
 ├── start.sh            # macOS/Linux 启动脚本
 ├── static/
 │   ├── index.html      # 页面结构
 │   ├── styles.css      # 页面样式
-│   └── app.js          # 前端交互和渲染
+│   └── js/
+│       ├── app.js      # 前端启动入口和事件绑定
+│       ├── api.js      # API 请求封装
+│       ├── constants.js # 前端表字段和标签配置
+│       ├── forms.js    # 表单收集、回填、重置
+│       ├── navigation.js # 标签页切换
+│       ├── records.js  # 今日概览和记录列表渲染
+│       ├── reports.js  # 报表请求和渲染
+│       ├── state.js    # 前端共享状态
+│       └── utils.js    # 日期、格式化、HTML 转义等工具
 ├── data/               # 本地数据库和个人数据，不提交到 GitHub
 └── uploads/            # 饮食照片，不提交到 GitHub
 ```
