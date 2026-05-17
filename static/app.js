@@ -84,6 +84,7 @@ const state = {
   medicationProducts: [],
   mealLocations: [],
   reportDays: 7,
+  reportModule: "bowel",
   report: null,
 };
 
@@ -156,7 +157,7 @@ async function loadReport() {
   const days = state.reportDays || 7;
   const endDate = state.date || dateInput.value || today();
   const payload = await requestJson(
-    `/api/report?days=${encodeURIComponent(days)}&end_date=${encodeURIComponent(endDate)}`,
+    `/api/report?module=${encodeURIComponent(state.reportModule)}&days=${encodeURIComponent(days)}&end_date=${encodeURIComponent(endDate)}`,
   );
   state.report = payload;
   renderReport(payload);
@@ -164,19 +165,39 @@ async function loadReport() {
 
 function renderReport(report) {
   if (!report) return;
+  updateReportShell(report);
+  if (report.module === "medications") {
+    renderMedicationReport(report);
+    return;
+  }
+  renderBowelReport(report);
+}
+
+function updateReportShell(report) {
+  const moduleLabel = report.module === "medications" ? "用药报表" : "排便报表";
+  document.querySelector("#report-title").textContent = moduleLabel;
+  document.querySelector("#report-range").textContent = `${report.range.start_date} 至 ${report.range.end_date}`;
+
+  document.querySelectorAll("[data-report-module]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.reportModule === report.module);
+  });
+  document.querySelectorAll("[data-report-module-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.reportModulePanel === report.module);
+  });
+  document.querySelectorAll("[data-report-days]").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.reportDays) === report.range.days);
+  });
+}
+
+function renderBowelReport(report) {
   const summary = report.summary || {};
 
-  document.querySelector("#report-range").textContent = `${report.range.start_date} 至 ${report.range.end_date}`;
   document.querySelector("#report-total-events").textContent = summary.total_events ?? 0;
   document.querySelector("#report-avg-events-day").textContent = summary.avg_events_per_day ?? 0;
   document.querySelector("#report-avg-bristol").textContent = summary.avg_bristol ?? "-";
   document.querySelector("#report-normal-rate").textContent = `${summary.normal_rate ?? 0}%`;
   document.querySelector("#report-abnormal-count").textContent = summary.abnormal_count ?? 0;
   document.querySelector("#report-urgent-count").textContent = summary.urgent_count ?? 0;
-
-  document.querySelectorAll("[data-report-days]").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.reportDays) === report.range.days);
-  });
 
   renderBarRows("#report-bowel-chart", report.daily || [], {
     emptyText: "这个周期还没有排便记录",
@@ -216,6 +237,63 @@ function renderReport(report) {
   renderInsights(report.insights || []);
 }
 
+function renderMedicationReport(report) {
+  const summary = report.summary || {};
+  const topProduct = summary.top_product;
+  const topTiming = summary.top_timing_relation;
+
+  document.querySelector("#med-report-total-records").textContent = summary.total_records ?? 0;
+  document.querySelector("#med-report-active-days").textContent = `${summary.days_with_records ?? 0}`;
+  document.querySelector("#med-report-products").textContent = summary.active_products ?? 0;
+  document.querySelector("#med-report-avg-day").textContent = summary.avg_records_per_day ?? 0;
+  document.querySelector("#med-report-top-product").textContent = topProduct
+    ? shortText(topProduct.label, 8)
+    : "-";
+  document.querySelector("#med-report-top-product-meta").textContent = topProduct
+    ? `${topProduct.count} 次`
+    : "按记录次数";
+  document.querySelector("#med-report-top-timing").textContent = topTiming
+    ? shortText(topTiming.label, 8)
+    : "-";
+  document.querySelector("#med-report-top-timing-meta").textContent = topTiming
+    ? `${topTiming.count} 次`
+    : "最常见";
+
+  renderBarRows("#med-report-daily-chart", report.daily || [], {
+    emptyText: "这个周期还没有用药记录",
+    label: (row) => shortDate(row.date),
+    value: (row) => row.count,
+    valueText: (row) => `${row.count} 条`,
+    meta: (row) => medicationDailyMeta(row),
+  });
+
+  renderMedicationProductList(report.product_usage || []);
+
+  renderBarRows("#med-report-type-chart", report.type_distribution || [], {
+    emptyText: "暂无类型分布",
+    label: (row) => row.label,
+    value: (row) => row.count,
+    valueText: (row) => `${row.count} 次`,
+  });
+
+  renderBarRows("#med-report-timing-chart", report.timing_distribution || [], {
+    emptyText: "暂无时间关系记录",
+    label: (row) => row.label,
+    value: (row) => row.count,
+    valueText: (row) => `${row.count} 次`,
+  });
+
+  renderDateChips(
+    "#med-report-no-record-days",
+    report.no_record_dates || [],
+    report.range.days,
+    "这个周期每天都有用药记录",
+    "天没有用药记录",
+  );
+  renderMedicationHighLoadDays(report.high_load_days || []);
+  renderInsightsFor("#med-report-insights", report.insights || [], "记录还不够，暂时没有用药解读");
+}
+
 function renderBarRows(selector, rows, options) {
   const container = document.querySelector(selector);
   if (!container) return;
@@ -242,6 +320,31 @@ function renderBarRows(selector, rows, options) {
             <span class="bar-fill" style="width: ${width}%"></span>
           </div>
           <div class="bar-value">${escapeHtml(String(options.valueText(row)))}</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderMedicationProductList(rows) {
+  const container = document.querySelector("#med-report-product-list");
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty">暂无药物使用排行</div>';
+    return;
+  }
+
+  container.innerHTML = rows
+    .slice(0, 10)
+    .map((row) => {
+      const quantity = row.quantity ? ` · ${formatNumber(row.quantity)}${row.unit || ""}` : "";
+      return `
+        <div class="rank-item">
+          <span>
+            <b>${escapeHtml(String(row.label || "未命名药物"))}</b>
+            <small>${escapeHtml([row.type, `${row.active_days} 天`].filter(Boolean).join(" · "))}</small>
+          </span>
+          <strong>${escapeHtml(`${row.count} 次${quantity}`)}</strong>
         </div>
       `;
     })
@@ -298,32 +401,72 @@ function renderAttentionDays(rows) {
 }
 
 function renderNoRecordDays(rows, totalDays) {
-  const container = document.querySelector("#report-no-record-days");
+  renderDateChips(
+    "#report-no-record-days",
+    rows,
+    totalDays,
+    "这个周期每天都有排便记录",
+    "天没有记录",
+  );
+}
+
+function renderDateChips(selector, rows, totalDays, emptyText, summarySuffix) {
+  const container = document.querySelector(selector);
   if (!container) return;
   if (!rows.length) {
-    container.innerHTML = '<div class="empty">这个周期每天都有排便记录</div>';
+    container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
     return;
   }
 
   const visibleRows = rows.slice(0, 12);
   const hiddenCount = rows.length - visibleRows.length;
   container.innerHTML = `
-    <div class="date-chip-summary">${rows.length} / ${totalDays} 天没有记录</div>
+    <div class="date-chip-summary">${rows.length} / ${totalDays} ${escapeHtml(summarySuffix)}</div>
     ${visibleRows.map((dateValue) => `<span class="date-chip">${escapeHtml(shortDate(dateValue))}</span>`).join("")}
     ${hiddenCount > 0 ? `<span class="date-chip muted">+${hiddenCount}</span>` : ""}
   `;
 }
 
 function renderInsights(rows) {
-  const container = document.querySelector("#report-insights");
+  renderInsightsFor("#report-insights", rows, "记录还不够，暂时没有趋势解读");
+}
+
+function renderInsightsFor(selector, rows, emptyText) {
+  const container = document.querySelector(selector);
   if (!container) return;
   if (!rows.length) {
-    container.innerHTML = '<div class="empty">记录还不够，暂时没有趋势解读</div>';
+    container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
     return;
   }
 
   container.innerHTML = rows
     .map((text) => `<div class="insight-item">${escapeHtml(text)}</div>`)
+    .join("");
+}
+
+function renderMedicationHighLoadDays(rows) {
+  const container = document.querySelector("#med-report-high-load-days");
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty">这个周期没有一天记录 4 条及以上用药</div>';
+    return;
+  }
+
+  container.innerHTML = rows
+    .map((row) => {
+      const meta = [
+        row.dominant_timing_relation,
+        row.dominant_type,
+        row.dominant_product,
+      ].filter(Boolean);
+      return `
+        <div class="attention-item">
+          <strong>${escapeHtml(row.date)}</strong>
+          <span>${escapeHtml(meta.join(" · "))}</span>
+          <b>${row.count} 条</b>
+        </div>
+      `;
+    })
     .join("");
 }
 
@@ -337,9 +480,21 @@ function dailyMetaText(row) {
   return parts.join(" · ");
 }
 
+function medicationDailyMeta(row) {
+  return [row.dominant_timing_relation, row.dominant_type, row.dominant_product]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function shortDate(value) {
   if (!value) return "";
   return value.slice(5).replace("-", "/");
+}
+
+function shortText(value, maxLength) {
+  if (!value) return "";
+  const text = String(value);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
 function formatNumber(value) {
@@ -695,10 +850,16 @@ document.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete]");
   const resetButton = event.target.closest("[data-reset]");
   const tabButton = event.target.closest("[data-tab]");
+  const reportModuleButton = event.target.closest("[data-report-module]");
   const reportRangeButton = event.target.closest("[data-report-days]");
 
   if (tabButton) {
     activateTab(tabButton.dataset.tab);
+  }
+
+  if (reportModuleButton) {
+    state.reportModule = reportModuleButton.dataset.reportModule || "bowel";
+    loadReport().catch((error) => showToast(error.message));
   }
 
   if (reportRangeButton) {

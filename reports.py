@@ -21,6 +21,17 @@ QUALITY_BUCKETS = {
 }
 
 
+def build_report(
+    conn: sqlite3.Connection,
+    module: str,
+    end_date_text: str | None,
+    days: int,
+) -> dict:
+    if module == "medications":
+        return build_medication_report(conn, end_date_text, days)
+    return build_bowel_report(conn, end_date_text, days)
+
+
 def row_to_dict(row: sqlite3.Row) -> dict:
     return {key: row[key] for key in row.keys()}
 
@@ -37,11 +48,7 @@ def safe_rate(part: int, whole: int) -> float:
     return round(part / whole * 100, 1)
 
 
-def build_bowel_report(
-    conn: sqlite3.Connection,
-    end_date_text: str | None,
-    days: int,
-) -> dict:
+def report_range(end_date_text: str | None, days: int) -> tuple[int, date, date, list[str]]:
     if days not in {7, 30}:
         days = 7
 
@@ -52,8 +59,33 @@ def build_bowel_report(
 
     start = end - timedelta(days=days - 1)
     date_keys = [(start + timedelta(days=index)).isoformat() for index in range(days)]
+    return days, start, end, date_keys
+
+
+def build_bowel_report(
+    conn: sqlite3.Connection,
+    end_date_text: str | None,
+    days: int,
+) -> dict:
+    days, start, end, date_keys = report_range(end_date_text, days)
     rows = fetch_bowel_rows(conn, start.isoformat(), end.isoformat())
     return build_bowel_report_from_rows(rows, date_keys, days, start.isoformat(), end.isoformat())
+
+
+def build_medication_report(
+    conn: sqlite3.Connection,
+    end_date_text: str | None,
+    days: int,
+) -> dict:
+    days, start, end, date_keys = report_range(end_date_text, days)
+    rows = fetch_medication_rows(conn, start.isoformat(), end.isoformat())
+    return build_medication_report_from_rows(
+        rows,
+        date_keys,
+        days,
+        start.isoformat(),
+        end.isoformat(),
+    )
 
 
 def fetch_bowel_rows(
@@ -76,6 +108,37 @@ def fetch_bowel_rows(
         FROM bowel_movements
         WHERE date(occurred_at) BETWEEN ? AND ?
         ORDER BY occurred_at ASC, id ASC
+        """,
+        (start_date, end_date),
+    ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def fetch_medication_rows(
+    conn: sqlite3.Connection,
+    start_date: str,
+    end_date: str,
+) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+            medications.id,
+            medications.taken_at,
+            medications.product_id,
+            medications.quantity_value,
+            medications.quantity_unit,
+            medications.timing_relation,
+            medications.notes,
+            medications.created_at,
+            medications.updated_at,
+            medication_products.product_name,
+            medication_products.product_type,
+            medication_products.default_unit,
+            medication_products.ingredients
+        FROM medications
+        LEFT JOIN medication_products ON medication_products.id = medications.product_id
+        WHERE date(medications.taken_at) BETWEEN ? AND ?
+        ORDER BY medications.taken_at ASC, medications.id ASC
         """,
         (start_date, end_date),
     ).fetchall()
@@ -214,6 +277,149 @@ def build_bowel_report_from_rows(
     }
 
 
+def build_medication_report_from_rows(
+    rows: list[dict],
+    date_keys: list[str],
+    days: int,
+    start_date: str,
+    end_date: str,
+) -> dict:
+    daily = {
+        day: {
+            "date": day,
+            "count": 0,
+            "products": {},
+            "types": {},
+            "timing_relations": {},
+            "dominant_product": None,
+            "dominant_type": None,
+            "dominant_timing_relation": None,
+        }
+        for day in date_keys
+    }
+    product_usage: dict[str, dict] = {}
+    type_counts: dict[str, dict] = {}
+    timing_counts: dict[str, dict] = {}
+
+    for item in rows:
+        day = (item.get("taken_at") or "")[:10]
+        if day not in daily:
+            continue
+
+        product_name = item.get("product_name") or "未登记药物"
+        product_type = item.get("product_type") or "未分类"
+        timing_relation = item.get("timing_relation") or "未记录关系"
+        quantity_value = item.get("quantity_value") or 0
+        unit = item.get("quantity_unit") or item.get("default_unit") or ""
+        product_key = str(item.get("product_id") or product_name)
+        day_row = daily[day]
+
+        day_row["count"] += 1
+        day_row["products"][product_name] = day_row["products"].get(product_name, 0) + 1
+        day_row["types"][product_type] = day_row["types"].get(product_type, 0) + 1
+        day_row["timing_relations"][timing_relation] = (
+            day_row["timing_relations"].get(timing_relation, 0) + 1
+        )
+
+        if product_key not in product_usage:
+            product_usage[product_key] = {
+                "label": product_name,
+                "type": product_type,
+                "count": 0,
+                "quantity": 0,
+                "unit": unit,
+                "active_days": set(),
+            }
+        product_usage[product_key]["count"] += 1
+        product_usage[product_key]["quantity"] += quantity_value
+        product_usage[product_key]["active_days"].add(day)
+
+        increment_rank(type_counts, product_type)
+        increment_rank(timing_counts, timing_relation)
+
+    daily_rows = []
+    for day in date_keys:
+        row = daily[day]
+        row["dominant_product"] = top_label(row["products"])
+        row["dominant_type"] = top_label(row["types"])
+        row["dominant_timing_relation"] = top_label(row["timing_relations"])
+        daily_rows.append(row)
+
+    product_rows = []
+    for row in product_usage.values():
+        product_rows.append(
+            {
+                "label": row["label"],
+                "type": row["type"],
+                "count": row["count"],
+                "quantity": round(row["quantity"], 2),
+                "unit": row["unit"],
+                "active_days": len(row["active_days"]),
+            }
+        )
+    product_rows = sorted_rank_rows(
+        {f"{row['label']}|{row['type']}": row for row in product_rows},
+        "count",
+    )
+
+    total_records = len(rows)
+    days_with_records = sum(1 for row in daily_rows if row["count"] > 0)
+    no_record_days = [row["date"] for row in daily_rows if row["count"] == 0]
+    high_load_days = [row for row in daily_rows if row["count"] >= 4]
+    type_rows = sorted_rank_rows(type_counts, "count")
+    timing_rows = sorted_rank_rows(timing_counts, "count")
+
+    return {
+        "module": "medications",
+        "range": {
+            "days": days,
+            "start_date": start_date,
+            "end_date": end_date,
+            "dates": date_keys,
+        },
+        "summary": {
+            "total_records": total_records,
+            "days_with_records": days_with_records,
+            "no_record_days": len(no_record_days),
+            "active_products": len(product_rows),
+            "active_types": len(type_rows),
+            "avg_records_per_day": safe_average([row["count"] for row in daily_rows]),
+            "avg_records_per_recorded_day": safe_average(
+                [row["count"] for row in daily_rows if row["count"] > 0]
+            ),
+            "high_load_days": len(high_load_days),
+            "top_product": product_rows[0] if product_rows else None,
+            "top_type": type_rows[0] if type_rows else None,
+            "top_timing_relation": timing_rows[0] if timing_rows else None,
+        },
+        "daily": daily_rows,
+        "product_usage": product_rows,
+        "type_distribution": type_rows,
+        "timing_distribution": timing_rows,
+        "high_load_days": [
+            {
+                "date": row["date"],
+                "count": row["count"],
+                "dominant_product": row["dominant_product"],
+                "dominant_type": row["dominant_type"],
+                "dominant_timing_relation": row["dominant_timing_relation"],
+            }
+            for row in high_load_days
+        ],
+        "no_record_dates": no_record_days,
+        "insights": build_medication_insights(
+            total_records=total_records,
+            active_products=len(product_rows),
+            top_product=product_rows[0] if product_rows else None,
+            top_type=type_rows[0] if type_rows else None,
+            top_timing_relation=timing_rows[0] if timing_rows else None,
+            high_load_days=len(high_load_days),
+            no_record_days=len(no_record_days),
+            days=days,
+        ),
+    }
+
+
 def bristol_quality_bucket(bristol_type: int) -> str:
     for key, config in QUALITY_BUCKETS.items():
         if bristol_type in config["levels"]:
@@ -289,5 +495,40 @@ def build_bowel_insights(
 
     if no_record_days >= max(2, round(days * 0.25)):
         insights.append(f"有 {no_record_days} 天没有排便记录，需要区分是未记录还是确实没有排便。")
+
+    return insights
+
+
+def build_medication_insights(
+    *,
+    total_records: int,
+    active_products: int,
+    top_product: dict | None,
+    top_type: dict | None,
+    top_timing_relation: dict | None,
+    high_load_days: int,
+    no_record_days: int,
+    days: int,
+) -> list[str]:
+    if total_records == 0:
+        return ["这个周期没有用药记录，报表暂时无法判断使用模式。"]
+
+    insights = [
+        f"这个周期记录了 {total_records} 条用药，涉及 {active_products} 种药物。"
+    ]
+    if top_product:
+        insights.append(
+            f"最常记录的是 {top_product['label']}，共 {top_product['count']} 次。"
+        )
+    if top_type:
+        insights.append(f"主要类型是 {top_type['label']}，共 {top_type['count']} 次。")
+    if top_timing_relation:
+        insights.append(
+            f"最常见服用时间关系是 {top_timing_relation['label']}，共 {top_timing_relation['count']} 次。"
+        )
+    if high_load_days:
+        insights.append(f"有 {high_load_days} 天记录了 4 种或更多用药，适合和当天症状一起回看。")
+    if no_record_days >= max(2, round(days * 0.25)):
+        insights.append(f"有 {no_record_days} 天没有用药记录，需要区分是未服用还是忘记记录。")
 
     return insights

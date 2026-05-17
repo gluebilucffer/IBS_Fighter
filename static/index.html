@@ -331,112 +331,213 @@
           <article class="report-panel">
             <div class="panel-heading report-heading">
               <div>
-                <h2>排便报表</h2>
+                <h2 id="report-title">排便报表</h2>
                 <p id="report-range">正在读取记录</p>
               </div>
-              <div class="segmented-control" aria-label="报表周期">
-                <button class="active" type="button" data-report-days="7">7 天</button>
-                <button type="button" data-report-days="30">30 天</button>
+              <div class="report-controls">
+                <div class="segmented-control" aria-label="报表分类">
+                  <button class="active" type="button" data-report-module="bowel">排便</button>
+                  <button type="button" data-report-module="medications">用药</button>
+                </div>
+                <div class="segmented-control" aria-label="报表周期">
+                  <button class="active" type="button" data-report-days="7">7 天</button>
+                  <button type="button" data-report-days="30">30 天</button>
+                </div>
               </div>
             </div>
 
-            <section class="report-summary-grid" aria-label="周期概览">
-              <article class="summary-card">
-                <span>总次数</span>
-                <strong id="report-total-events">0</strong>
-                <small>这个周期的排便记录</small>
-              </article>
-              <article class="summary-card">
-                <span>平均每天</span>
-                <strong id="report-avg-events-day">0</strong>
-                <small>按完整周期计算</small>
-              </article>
-              <article class="summary-card">
-                <span>平均等级</span>
-                <strong id="report-avg-bristol">-</strong>
-                <small>布里斯托 1-7</small>
-              </article>
-              <article class="summary-card">
-                <span>相对正常</span>
-                <strong id="report-normal-rate">0%</strong>
-                <small>3-5 级占比</small>
-              </article>
-              <article class="summary-card">
-                <span>偏硬/偏稀</span>
-                <strong id="report-abnormal-count">0</strong>
-                <small>1-2 或 6-7 级</small>
-              </article>
-              <article class="summary-card">
-                <span>急迫感</span>
-                <strong id="report-urgent-count">0</strong>
-                <small>急迫感 3 分以上</small>
-              </article>
+            <section class="report-module active" data-report-module-panel="bowel">
+              <section class="report-summary-grid" aria-label="排便周期概览">
+                <article class="summary-card">
+                  <span>总次数</span>
+                  <strong id="report-total-events">0</strong>
+                  <small>这个周期的排便记录</small>
+                </article>
+                <article class="summary-card">
+                  <span>平均每天</span>
+                  <strong id="report-avg-events-day">0</strong>
+                  <small>按完整周期计算</small>
+                </article>
+                <article class="summary-card">
+                  <span>平均等级</span>
+                  <strong id="report-avg-bristol">-</strong>
+                  <small>布里斯托 1-7</small>
+                </article>
+                <article class="summary-card">
+                  <span>相对正常</span>
+                  <strong id="report-normal-rate">0%</strong>
+                  <small>3-5 级占比</small>
+                </article>
+                <article class="summary-card">
+                  <span>偏硬/偏稀</span>
+                  <strong id="report-abnormal-count">0</strong>
+                  <small>1-2 或 6-7 级</small>
+                </article>
+                <article class="summary-card">
+                  <span>急迫感</span>
+                  <strong id="report-urgent-count">0</strong>
+                  <small>急迫感 3 分以上</small>
+                </article>
+              </section>
+
+              <section class="report-grid" aria-label="排便趋势图">
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>每日趋势</h3>
+                    <span>次数、平均等级、异常提示</span>
+                  </div>
+                  <div class="bar-chart" id="report-bowel-chart"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>布里斯托分布</h3>
+                    <span>1 到 7 级</span>
+                  </div>
+                  <div class="bar-chart compact" id="report-bristol-chart"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>形态归类</h3>
+                    <span>偏硬 / 正常 / 偏稀</span>
+                  </div>
+                  <div class="bar-chart compact" id="report-quality-chart"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>颜色分布</h3>
+                    <span>按记录次数</span>
+                  </div>
+                  <div class="rank-list" id="report-color-list"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>地点分布</h3>
+                    <span>按记录次数</span>
+                  </div>
+                  <div class="rank-list" id="report-location-list"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>无记录日期</h3>
+                    <span>需要区分未记录还是无排便</span>
+                  </div>
+                  <div class="date-chip-list" id="report-no-record-days"></div>
+                </article>
+
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>需要留意的日期</h3>
+                    <span>异常等级、急迫感或一天多次排便</span>
+                  </div>
+                  <div class="attention-list" id="report-attention-days"></div>
+                </article>
+
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>初步解读</h3>
+                    <span>只基于排便记录生成</span>
+                  </div>
+                  <div class="insight-list" id="report-insights"></div>
+                </article>
+              </section>
             </section>
 
-            <section class="report-grid" aria-label="趋势图">
-              <article class="chart-card wide">
-                <div class="chart-heading">
-                  <h3>每日趋势</h3>
-                  <span>次数、平均等级、异常提示</span>
-                </div>
-                <div class="bar-chart" id="report-bowel-chart"></div>
-              </article>
+            <section class="report-module" data-report-module-panel="medications">
+              <section class="report-summary-grid" aria-label="用药周期概览">
+                <article class="summary-card">
+                  <span>用药记录</span>
+                  <strong id="med-report-total-records">0</strong>
+                  <small>这个周期的记录条数</small>
+                </article>
+                <article class="summary-card">
+                  <span>使用天数</span>
+                  <strong id="med-report-active-days">0</strong>
+                  <small>有用药记录的日期</small>
+                </article>
+                <article class="summary-card">
+                  <span>药物种类</span>
+                  <strong id="med-report-products">0</strong>
+                  <small>周期内出现过的药物</small>
+                </article>
+                <article class="summary-card">
+                  <span>平均每天</span>
+                  <strong id="med-report-avg-day">0</strong>
+                  <small>按完整周期计算</small>
+                </article>
+                <article class="summary-card">
+                  <span>最多药物</span>
+                  <strong id="med-report-top-product">-</strong>
+                  <small id="med-report-top-product-meta">按记录次数</small>
+                </article>
+                <article class="summary-card">
+                  <span>时间关系</span>
+                  <strong id="med-report-top-timing">-</strong>
+                  <small id="med-report-top-timing-meta">最常见</small>
+                </article>
+              </section>
 
-              <article class="chart-card">
-                <div class="chart-heading">
-                  <h3>布里斯托分布</h3>
-                  <span>1 到 7 级</span>
-                </div>
-                <div class="bar-chart compact" id="report-bristol-chart"></div>
-              </article>
+              <section class="report-grid" aria-label="用药趋势图">
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>每日用药趋势</h3>
+                    <span>每天记录了多少种/次用药</span>
+                  </div>
+                  <div class="bar-chart" id="med-report-daily-chart"></div>
+                </article>
 
-              <article class="chart-card">
-                <div class="chart-heading">
-                  <h3>形态归类</h3>
-                  <span>偏硬 / 正常 / 偏稀</span>
-                </div>
-                <div class="bar-chart compact" id="report-quality-chart"></div>
-              </article>
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>药物使用排行</h3>
+                    <span>次数、总数量、使用天数</span>
+                  </div>
+                  <div class="rank-list" id="med-report-product-list"></div>
+                </article>
 
-              <article class="chart-card">
-                <div class="chart-heading">
-                  <h3>颜色分布</h3>
-                  <span>按记录次数</span>
-                </div>
-                <div class="rank-list" id="report-color-list"></div>
-              </article>
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>类型分布</h3>
+                    <span>处方药 / 益生菌 / 补剂</span>
+                  </div>
+                  <div class="bar-chart compact" id="med-report-type-chart"></div>
+                </article>
 
-              <article class="chart-card">
-                <div class="chart-heading">
-                  <h3>地点分布</h3>
-                  <span>按记录次数</span>
-                </div>
-                <div class="rank-list" id="report-location-list"></div>
-              </article>
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>时间关系分布</h3>
+                    <span>饭前、饭后、睡前等</span>
+                  </div>
+                  <div class="bar-chart compact" id="med-report-timing-chart"></div>
+                </article>
 
-              <article class="chart-card">
-                <div class="chart-heading">
-                  <h3>无记录日期</h3>
-                  <span>需要区分未记录还是无排便</span>
-                </div>
-                <div class="date-chip-list" id="report-no-record-days"></div>
-              </article>
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>无用药记录日期</h3>
+                    <span>需要区分未服用还是忘记记录</span>
+                  </div>
+                  <div class="date-chip-list" id="med-report-no-record-days"></div>
+                </article>
 
-              <article class="chart-card wide">
-                <div class="chart-heading">
-                  <h3>需要留意的日期</h3>
-                  <span>异常等级、急迫感或一天多次排便</span>
-                </div>
-                <div class="attention-list" id="report-attention-days"></div>
-              </article>
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>高记录日</h3>
+                    <span>一天 4 条及以上</span>
+                  </div>
+                  <div class="attention-list" id="med-report-high-load-days"></div>
+                </article>
 
-              <article class="chart-card wide">
-                <div class="chart-heading">
-                  <h3>初步解读</h3>
-                  <span>只基于排便记录生成</span>
-                </div>
-                <div class="insight-list" id="report-insights"></div>
-              </article>
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>初步解读</h3>
+                    <span>只基于用药记录生成</span>
+                  </div>
+                  <div class="insight-list" id="med-report-insights"></div>
+                </article>
+              </section>
             </section>
           </article>
         </section>

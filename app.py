@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from reports import build_bowel_report
+from reports import build_report
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -546,10 +546,11 @@ class IBSFighterHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/report":
             query = parse_qs(parsed.query)
             selected_end = query.get("end_date", [date.today().isoformat()])[0]
+            module = query.get("module", ["bowel"])[0]
             try:
                 days = int(query.get("days", ["7"])[0])
                 with get_connection() as conn:
-                    self.send_json(build_bowel_report(conn, selected_end, days))
+                    self.send_json(build_report(conn, module, selected_end, days))
             except ValueError as exc:
                 self.send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
             return

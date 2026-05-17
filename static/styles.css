@@ -400,6 +400,13 @@ button.danger:hover {
   font-size: 13px;
 }
 
+.report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
 .segmented-control {
   display: inline-flex;
   gap: 4px;
@@ -427,6 +434,15 @@ button.danger:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
+}
+
+.report-module {
+  display: none;
+  gap: 16px;
+}
+
+.report-module.active {
+  display: grid;
 }
 
 .report-grid {
@@ -699,6 +715,10 @@ button.danger:hover {
   .chart-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .report-controls {
+    justify-content: stretch;
   }
 
   .segmented-control {
