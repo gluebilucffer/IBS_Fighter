@@ -15,7 +15,7 @@
 仅在这台电脑上使用：
 
 ```bash
-python3 app.py
+python3 IBS_Fighter.py
 ```
 
 打开：
@@ -58,7 +58,7 @@ uploads/
 
 ```text
 IBS Fighter/
-├── app.py              # 启动入口
+├── IBS_Fighter.py      # 本地应用启动入口
 ├── ibs_fighter/
 │   ├── config.py       # 路径、端口、上传限制等配置
 │   ├── db.py           # SQLite 初始化和迁移
@@ -75,7 +75,7 @@ IBS Fighter/
 │   ├── index.html      # 页面结构
 │   ├── styles.css      # 页面样式
 │   └── js/
-│       ├── app.js      # 前端启动入口和事件绑定
+│       ├── app.js      # 浏览器端启动入口和事件绑定
 │       ├── api.js      # API 请求封装
 │       ├── constants.js # 前端表字段和标签配置
 │       ├── forms.js    # 表单收集、回填、重置
