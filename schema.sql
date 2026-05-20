@@ -60,26 +60,11 @@ CREATE TABLE IF NOT EXISTS exercises (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS sleep_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sleep_date TEXT NOT NULL,
-    source TEXT DEFAULT 'manual',
-    started_at TEXT,
-    ended_at TEXT,
-    duration_minutes INTEGER CHECK (duration_minutes IS NULL OR duration_minutes >= 0),
-    quality TEXT,
-    raw_payload TEXT,
-    notes TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE INDEX IF NOT EXISTS idx_bowel_movements_occurred_at ON bowel_movements (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_meals_eaten_at ON meals (eaten_at);
 CREATE INDEX IF NOT EXISTS idx_medication_products_name ON medication_products (product_name);
 CREATE INDEX IF NOT EXISTS idx_medications_taken_at ON medications (taken_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_started_at ON exercises (started_at);
-CREATE INDEX IF NOT EXISTS idx_sleep_entries_sleep_date ON sleep_entries (sleep_date);
 
 CREATE TRIGGER IF NOT EXISTS trg_bowel_movements_updated_at
 AFTER UPDATE ON bowel_movements
@@ -114,11 +99,4 @@ AFTER UPDATE ON exercises
 FOR EACH ROW
 BEGIN
     UPDATE exercises SET updated_at = datetime('now') WHERE id = OLD.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_sleep_entries_updated_at
-AFTER UPDATE ON sleep_entries
-FOR EACH ROW
-BEGIN
-    UPDATE sleep_entries SET updated_at = datetime('now') WHERE id = OLD.id;
 END;

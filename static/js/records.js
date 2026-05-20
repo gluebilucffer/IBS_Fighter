@@ -9,7 +9,24 @@ export function renderSummary(summary) {
   document.querySelector("#summary-meals").textContent = summary.meals ?? 0;
   document.querySelector("#summary-medications").textContent = summary.medications ?? 0;
   document.querySelector("#summary-exercise").textContent = summary.exercise_minutes ?? 0;
-  document.querySelector("#summary-sleep").textContent = summary.sleep_minutes ?? 0;
+}
+
+
+export function renderChecklist(checklist = []) {
+  const container = document.querySelector("#daily-checklist");
+  if (!container) return;
+  container.innerHTML = "";
+
+  checklist.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = `checklist-item ${item.done ? "done" : "missing"}`;
+    card.innerHTML = `
+      <span>${item.done ? "已记" : "待记"}</span>
+      <strong>${escapeHtml(item.label)}</strong>
+      <small>${escapeHtml(item.detail || "")}</small>
+    `;
+    container.append(card);
+  });
 }
 
 
@@ -90,6 +107,15 @@ export function populateMealLocations() {
 }
 
 
+export function populateShortcuts() {
+  const shortcuts = state.shortcuts || {};
+  renderShortcutButtons("meal_locations", shortcuts.meal_locations || [], "meals", "location");
+  renderShortcutButtons("bowel_locations", shortcuts.bowel_locations || [], "bowel_movements", "location");
+  renderShortcutButtons("exercise_types", shortcuts.exercise_types || [], "exercises", "activity_type");
+  renderMealTextButtons(shortcuts.meal_texts || []);
+}
+
+
 function recordTitle(table, record) {
   if (table === "bowel_movements") {
     return bristolLabels[record.bristol_type] || record.bristol_type;
@@ -106,10 +132,6 @@ function recordTitle(table, record) {
   if (table === "exercises") {
     return record.activity_type;
   }
-  if (table === "sleep_entries") {
-    const duration = record.duration_minutes ? `${record.duration_minutes} 分钟` : "睡眠";
-    return record.quality ? `${duration} / ${record.quality}` : duration;
-  }
   return "";
 }
 
@@ -120,9 +142,8 @@ function recordTime(table, record) {
     meals: "eaten_at",
     medications: "taken_at",
     exercises: "started_at",
-    sleep_entries: "started_at",
   }[table];
-  return key && record[key] ? formatDateTime(record[key]) : record.sleep_date || "";
+  return key && record[key] ? formatDateTime(record[key]) : "";
 }
 
 
@@ -171,16 +192,6 @@ function recordDetails(table, record) {
     add("备注", record.notes);
   }
 
-  if (table === "sleep_entries") {
-    const duration = record.duration_minutes ? `${record.duration_minutes} 分钟` : "";
-    add("日期", record.sleep_date);
-    add("入睡", formatDateTime(record.started_at));
-    add("醒来", formatDateTime(record.ended_at));
-    add("时长", duration);
-    add("质量", record.quality);
-    add("备注", record.notes);
-  }
-
   return rows.join("") || "<div>无备注</div>";
 }
 
@@ -192,4 +203,64 @@ function recordPhoto(table, record) {
       <img class="meal-photo" src="${escapeHtml(record.photo_path)}" alt="饮食照片" />
     </figure>
   `;
+}
+
+
+function renderShortcutButtons(listName, values, table, field) {
+  const container = document.querySelector(`[data-shortcut-list="${listName}"]`);
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!values.length) {
+    container.append(shortcutEmpty());
+    return;
+  }
+
+  values.forEach((value) => {
+    const button = document.createElement("button");
+    button.className = "shortcut-pill";
+    button.type = "button";
+    button.dataset.shortcutTable = table;
+    button.dataset.shortcutField = field;
+    button.dataset.shortcutValue = value;
+    button.textContent = value;
+    container.append(button);
+  });
+}
+
+
+function renderMealTextButtons(items) {
+  const container = document.querySelector('[data-shortcut-list="meal_texts"]');
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!items.length) {
+    container.append(shortcutEmpty());
+    return;
+  }
+
+  items.forEach((item) => {
+    const button = document.createElement("button");
+    button.className = "shortcut-pill text";
+    button.type = "button";
+    button.dataset.shortcutTable = "meals";
+    button.dataset.shortcutField = "foods";
+    button.dataset.shortcutValue = item.foods;
+    button.textContent = shortShortcutText(item.foods);
+    container.append(button);
+  });
+}
+
+
+function shortcutEmpty() {
+  const empty = document.createElement("small");
+  empty.className = "shortcut-empty";
+  empty.textContent = "暂无历史";
+  return empty;
+}
+
+
+function shortShortcutText(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > 28 ? `${text.slice(0, 28)}...` : text;
 }

@@ -108,7 +108,12 @@ function setFormDefaultDateTime(form) {
 }
 
 
-function fileToDataUrl(file) {
+export function getFormControl(form, name) {
+  return getControl(form, name);
+}
+
+
+export function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);

@@ -11,7 +11,7 @@
       <div class="brand-block">
         <span class="eyebrow">Calm Clinical Console</span>
         <h1>IBS Fighter</h1>
-        <p>排便、饮食、用药、运动与睡眠的个人康复控制台</p>
+        <p>排便、饮食、用药与运动的个人康复控制台</p>
       </div>
       <div class="header-actions">
         <label class="date-control">
@@ -65,6 +65,17 @@
             </button>
           </section>
 
+          <section class="daily-checklist" aria-label="今日检查">
+            <div class="section-heading compact">
+              <div>
+                <span class="eyebrow">Checklist</span>
+                <h2>今日检查</h2>
+              </div>
+              <p>用来发现漏记，不参与医学判断。</p>
+            </div>
+            <div class="checklist-grid" id="daily-checklist"></div>
+          </section>
+
           <section class="summary-grid" aria-label="今日概览">
             <article class="summary-card primary">
               <span>排便</span>
@@ -86,11 +97,6 @@
               <strong id="summary-exercise">0</strong>
               <small>分钟</small>
             </article>
-            <article class="summary-card">
-              <span>睡眠</span>
-              <strong id="summary-sleep">0</strong>
-              <small>分钟</small>
-            </article>
           </section>
         </section>
 
@@ -108,7 +114,6 @@
             <button class="record-tab" type="button" data-record-tab="meals">饮食</button>
             <button class="record-tab" type="button" data-record-tab="medications">用药</button>
             <button class="record-tab" type="button" data-record-tab="exercises">运动</button>
-            <button class="record-tab" type="button" data-record-tab="sleep_entries">睡眠</button>
           </nav>
 
           <section class="record-panels">
@@ -167,6 +172,10 @@
                       </select>
                     </label>
                   </div>
+                  <div class="shortcut-block">
+                    <span>常用地点</span>
+                    <div class="shortcut-list" data-shortcut-list="bowel_locations"></div>
+                  </div>
                   <label>
                     备注
                     <textarea name="notes" rows="2"></textarea>
@@ -208,10 +217,24 @@
                     <input name="location" type="text" list="meal-location-history" placeholder="家 / 外食" />
                   </label>
                   <datalist id="meal-location-history"></datalist>
+                  <div class="shortcut-block">
+                    <span>常用地点</span>
+                    <div class="shortcut-list" data-shortcut-list="meal_locations"></div>
+                  </div>
                   <label>
                     文字描述
                     <textarea name="foods" rows="3" placeholder="简单写一下，不需要拆很细"></textarea>
                   </label>
+                  <div class="ai-meal-panel" data-ai-meal-panel>
+                    <button class="ghost ai-meal-button" type="button" data-ai-meal-analyze>
+                      AI 识别饮食
+                    </button>
+                    <div class="ai-meal-result" data-ai-meal-result hidden></div>
+                  </div>
+                  <div class="shortcut-block">
+                    <span>最近饮食</span>
+                    <div class="shortcut-list text-shortcuts" data-shortcut-list="meal_texts"></div>
+                  </div>
                   <label>
                     饭后反应
                     <textarea name="symptoms_after" rows="2">无明显反应</textarea>
@@ -280,6 +303,10 @@
                     活动
                     <input name="activity_type" type="text" placeholder="散步 / 跑步 / 力量 / 工作" required />
                   </label>
+                  <div class="shortcut-block">
+                    <span>常用活动</span>
+                    <div class="shortcut-list" data-shortcut-list="exercise_types"></div>
+                  </div>
                   <div class="two-col">
                     <label>
                       分钟
@@ -302,54 +329,6 @@
                   <button type="submit">保存运动</button>
                 </form>
                 <div class="record-list" data-list="exercises"></div>
-              </article>
-            </section>
-
-            <section class="record-panel" data-record-panel="sleep_entries">
-              <article class="panel record-editor" data-table="sleep_entries">
-                <div class="panel-heading">
-                  <h2>睡眠</h2>
-                  <button class="ghost" type="button" data-reset="sleep_entries">清空</button>
-                </div>
-                <form data-form="sleep_entries">
-                  <input name="id" type="hidden" />
-                  <input name="source" type="hidden" value="manual" />
-                  <label>
-                    睡眠日期
-                    <input name="sleep_date" type="date" required />
-                  </label>
-                  <div class="two-col">
-                    <label>
-                      入睡时间
-                      <input name="started_at" type="datetime-local" />
-                    </label>
-                    <label>
-                      醒来时间
-                      <input name="ended_at" type="datetime-local" />
-                    </label>
-                  </div>
-                  <div class="two-col">
-                    <label>
-                      分钟
-                      <input name="duration_minutes" type="number" min="0" step="1" />
-                    </label>
-                    <label>
-                      质量
-                      <select name="quality">
-                        <option value="">未记录</option>
-                        <option>好</option>
-                        <option>一般</option>
-                        <option>差</option>
-                      </select>
-                    </label>
-                  </div>
-                  <label>
-                    备注
-                    <textarea name="notes" rows="2"></textarea>
-                  </label>
-                  <button type="submit">保存睡眠</button>
-                </form>
-                <div class="record-list" data-list="sleep_entries"></div>
               </article>
             </section>
           </section>
@@ -633,25 +612,13 @@
               <span class="eyebrow">System</span>
               <h2>设置</h2>
             </div>
-            <p>当前先做本地稳定使用，后续接 Gmail、Google Drive 和 Apple Health。</p>
+            <p>当前先做本地稳定使用，后续只保留 Google Drive 备份方向。</p>
           </div>
           <section class="settings-grid">
-            <article class="setting-card">
-              <span>Google 账号</span>
-              <h3>Gmail 登录</h3>
-              <p>之后只允许你的 Google 账号登录，避免开放注册。</p>
-              <button class="ghost" type="button">预留</button>
-            </article>
             <article class="setting-card">
               <span>Google Drive</span>
               <h3>备份</h3>
               <p>第一版建议做手动备份，不做实时双向同步。</p>
-              <button class="ghost" type="button">预留</button>
-            </article>
-            <article class="setting-card">
-              <span>Apple Health</span>
-              <h3>睡眠导入</h3>
-              <p>先通过快捷指令导出，再做 CSV / JSON 导入。</p>
               <button class="ghost" type="button">预留</button>
             </article>
           </section>

@@ -4,10 +4,9 @@ export const tableLabels = {
   medications: "用药",
   medication_products: "药物",
   exercises: "运动",
-  sleep_entries: "睡眠",
 };
 
-export const trackingTables = ["bowel_movements", "meals", "medications", "exercises", "sleep_entries"];
+export const trackingTables = ["bowel_movements", "meals", "medications", "exercises"];
 
 export const tableFields = {
   bowel_movements: [
@@ -46,16 +45,6 @@ export const tableFields = {
     "activity_type",
     "duration_minutes",
     "intensity",
-    "notes",
-  ],
-  sleep_entries: [
-    "id",
-    "sleep_date",
-    "source",
-    "started_at",
-    "ended_at",
-    "duration_minutes",
-    "quality",
     "notes",
   ],
 };

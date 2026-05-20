@@ -11,6 +11,7 @@ from .config import DB_PATH, HOST, PORT, STATIC_DIR, UPLOADS_DIR
 from .crud import build_day_payload, delete_record, fetch_records, insert_record, update_record
 from .db import get_connection, init_database
 from .models import TABLES
+from .openai_meal_analyzer import analyze_meal
 from .reports import build_report
 
 
@@ -51,6 +52,16 @@ class IBSFighterHandler(SimpleHTTPRequestHandler):
         self.serve_static(parsed.path)
 
     def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/ai/meals/analyze":
+            try:
+                self.send_json(analyze_meal(self.read_json_body()))
+            except ValueError as exc:
+                self.send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
+            except RuntimeError as exc:
+                self.send_error_json(HTTPStatus.BAD_GATEWAY, str(exc))
+            return
+
         table, record_id = self.parse_api_record_path()
         if not table or record_id is not None:
             self.send_error_json(HTTPStatus.NOT_FOUND, "接口不存在")

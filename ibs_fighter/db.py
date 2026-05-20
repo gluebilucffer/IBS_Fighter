@@ -59,6 +59,13 @@ def migrate_database(conn: sqlite3.Connection) -> None:
     if "product_id" not in medication_columns or "product_type" in medication_columns:
         rebuild_medications_table(conn)
     backfill_medication_units(conn)
+    drop_sleep_module(conn)
+
+
+def drop_sleep_module(conn: sqlite3.Connection) -> None:
+    conn.execute("DROP TRIGGER IF EXISTS trg_sleep_entries_updated_at")
+    conn.execute("DROP INDEX IF EXISTS idx_sleep_entries_sleep_date")
+    conn.execute("DROP TABLE IF EXISTS sleep_entries")
 
 
 def find_or_create_medication_product(

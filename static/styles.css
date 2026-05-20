@@ -351,6 +351,10 @@ main {
   gap: 16px;
 }
 
+.section-heading.compact h2 {
+  font-size: 22px;
+}
+
 .section-heading h2 {
   margin-top: 4px;
   font-size: 30px;
@@ -367,6 +371,53 @@ main {
   min-height: 40px;
   border-color: var(--line);
   background: var(--surface);
+}
+
+.daily-checklist {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.checklist-item {
+  display: grid;
+  gap: 5px;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdfa;
+}
+
+.checklist-item.done {
+  border-color: var(--primary-soft);
+  background: var(--surface-tint);
+}
+
+.checklist-item.missing {
+  border-color: var(--accent-soft);
+  background: #fff7ea;
+}
+
+.checklist-item span,
+.checklist-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.checklist-item strong {
+  color: var(--primary-dark);
+  font-size: 17px;
 }
 
 .panel {
@@ -555,6 +606,118 @@ textarea:focus {
 
 .upload-card small {
   color: var(--muted);
+  line-height: 1.45;
+}
+
+.shortcut-block {
+  display: grid;
+  gap: 7px;
+}
+
+.shortcut-block > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 690;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.shortcut-pill {
+  min-height: 32px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffdfa;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 720;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-pill:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.shortcut-pill.text {
+  border-radius: 8px;
+  white-space: normal;
+  text-align: left;
+}
+
+.shortcut-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ai-meal-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-meal-button {
+  justify-self: start;
+}
+
+.ai-meal-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.ai-meal-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--primary-soft);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgb(15 95 86 / 8%), transparent 52%),
+    #fffdfa;
+}
+
+.ai-meal-card span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.ai-meal-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--primary-dark);
+  line-height: 1.45;
+}
+
+.ai-meal-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.ai-meal-card dl > div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.ai-meal-card dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.ai-meal-card dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
   line-height: 1.45;
 }
 

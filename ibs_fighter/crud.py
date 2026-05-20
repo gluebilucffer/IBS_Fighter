@@ -101,10 +101,7 @@ def fetch_records(table: str, selected_date: str | None = None) -> list[dict]:
     params: list[str] = []
     if selected_date and config["date_column"]:
         date_column = config["date_column"]
-        if date_column == "sleep_date":
-            sql += f" WHERE {date_column} = ?"
-        else:
-            sql += f" WHERE date({date_column}) = ?"
+        sql += f" WHERE date({date_column}) = ?"
         params.append(selected_date)
     sql += f" ORDER BY {config['order']}"
 
@@ -175,6 +172,8 @@ def build_day_payload(selected_date: str) -> dict:
     if bristol_values:
         avg_bristol = round(sum(bristol_values) / len(bristol_values), 1)
 
+    shortcuts = fetch_shortcuts()
+
     return {
         "date": selected_date,
         "summary": {
@@ -183,22 +182,94 @@ def build_day_payload(selected_date: str) -> dict:
             "meals": len(records["meals"]),
             "medications": len(records["medications"]),
             "exercise_minutes": exercise_minutes,
-            "sleep_minutes": sum(item.get("duration_minutes") or 0 for item in records["sleep_entries"]),
         },
+        "checklist": build_daily_checklist(records, exercise_minutes),
         "records": records,
         "medication_products": fetch_records("medication_products"),
-        "meal_locations": fetch_meal_locations(),
+        "meal_locations": shortcuts["meal_locations"],
+        "shortcuts": shortcuts,
+    }
+
+
+def build_daily_checklist(records: dict, exercise_minutes: int) -> list[dict]:
+    meal_types = {item.get("meal_type") for item in records["meals"]}
+    return [
+        checklist_item("bowel", "排便", len(records["bowel_movements"]) > 0, len(records["bowel_movements"])),
+        checklist_item("breakfast", "早餐", "早餐" in meal_types),
+        checklist_item("lunch", "午餐", "午餐" in meal_types),
+        checklist_item("dinner", "晚餐", "晚餐" in meal_types),
+        checklist_item("medications", "用药", len(records["medications"]) > 0, len(records["medications"])),
+        checklist_item("exercise", "运动", len(records["exercises"]) > 0, exercise_minutes, "分钟"),
+    ]
+
+
+def checklist_item(
+    key: str,
+    label: str,
+    done: bool,
+    amount: int | None = None,
+    unit: str = "条",
+) -> dict:
+    if amount is None:
+        detail = "已记录" if done else "未记录"
+    else:
+        detail = f"{amount}{unit}" if done else "未记录"
+    return {
+        "key": key,
+        "label": label,
+        "done": done,
+        "detail": detail,
+    }
+
+
+def fetch_shortcuts() -> dict:
+    return {
+        "meal_locations": fetch_ranked_text_values("meals", "location", "eaten_at"),
+        "bowel_locations": fetch_ranked_text_values("bowel_movements", "location", "occurred_at"),
+        "meal_texts": fetch_meal_text_shortcuts(),
+        "exercise_types": fetch_ranked_text_values("exercises", "activity_type", "started_at"),
     }
 
 
 def fetch_meal_locations() -> list[str]:
+    return fetch_ranked_text_values("meals", "location", "eaten_at", limit=30)
+
+
+def fetch_ranked_text_values(
+    table: str,
+    column: str,
+    date_column: str,
+    limit: int = 8,
+) -> list[str]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT {column} AS value, COUNT(*) AS used_count, MAX({date_column}) AS last_used_at
+            FROM {table}
+            WHERE {column} IS NOT NULL AND TRIM({column}) != ''
+            GROUP BY {column}
+            ORDER BY used_count DESC, last_used_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [row["value"] for row in rows]
+
+
+def fetch_meal_text_shortcuts(limit: int = 8) -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT DISTINCT location
+            SELECT
+                foods,
+                COUNT(*) AS used_count,
+                MAX(eaten_at) AS last_used_at
             FROM meals
-            WHERE location IS NOT NULL AND location != ''
-            ORDER BY location COLLATE NOCASE ASC
-            """
+            WHERE foods IS NOT NULL AND TRIM(foods) != ''
+            GROUP BY foods
+            ORDER BY last_used_at DESC
+            LIMIT ?
+            """,
+            (limit,),
         ).fetchall()
-    return [row["location"] for row in rows]
+    return [row_to_dict(row) for row in rows]

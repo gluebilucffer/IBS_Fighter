@@ -6,7 +6,6 @@ TRACKING_TABLES = [
     "meals",
     "medications",
     "exercises",
-    "sleep_entries",
 ]
 
 
@@ -74,19 +73,5 @@ TABLES = {
         },
         "required": {"started_at", "activity_type"},
         "order": "started_at ASC, id ASC",
-    },
-    "sleep_entries": {
-        "date_column": "sleep_date",
-        "fields": {
-            "sleep_date": "text",
-            "source": "text",
-            "started_at": "text",
-            "ended_at": "text",
-            "duration_minutes": "int",
-            "quality": "text",
-            "notes": "text",
-        },
-        "required": {"sleep_date"},
-        "order": "sleep_date ASC, id ASC",
     },
 }
