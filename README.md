@@ -9,6 +9,7 @@
 - 运动：时间、常用活动快捷填充、活动文本、时长、强度、备注
 - 今日检查：排便、三餐、用药和运动是否已记录，帮助发现漏记
 - 报表：按分类查看排便和用药，支持 7 天和 30 天周期
+- OpenAI 测试：饮食照片/文字识别，结果用于辅助填写文字描述
 
 ## 运行
 
@@ -52,6 +53,20 @@ data/ibs_fighter.sqlite3
 uploads/
 ```
 
+## OpenAI 饮食识别测试
+
+OpenAI API key 保存在本机 `.env`，不要提交到 GitHub：
+
+```text
+OPENAI_API_KEY=你的key
+```
+
+如果 macOS Python 请求 OpenAI 时出现 `CERTIFICATE_VERIFY_FAILED`，先安装用户级证书包：
+
+```bash
+python3 -m pip install --user certifi
+```
+
 ## 数据结构
 
 完整建表语句在 `schema.sql`。如果之后要导出数据，可以直接使用 SQLite 工具读取 `data/ibs_fighter.sqlite3`。
@@ -68,6 +83,7 @@ IBS Fighter/
 │   ├── crud.py         # 数据增删改查和今日汇总
 │   ├── uploads.py      # 饮食照片保存
 │   ├── reports.py      # 分类报表计算，目前包含排便和用药
+│   ├── openai_meal_analyzer.py # OpenAI 饮食识别测试
 │   ├── server.py       # 本地 Web 服务和 API 路由
 │   └── drive_backup.py # 之后接 Google Drive 备份
 ├── schema.sql          # SQLite 建表和索引
