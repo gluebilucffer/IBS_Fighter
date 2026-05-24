@@ -1,7 +1,7 @@
 import { numericFields, tableFields } from "./constants.js";
 import { populateMedicationPickers } from "./records.js";
 import { state } from "./state.js";
-import { defaultDateTime, today } from "./utils.js";
+import { browserTimeZone, defaultDateTime, today } from "./utils.js";
 
 
 export async function collectFormData(form) {
@@ -25,6 +25,7 @@ export async function collectFormData(form) {
     payload.photo_data_url = await fileToDataUrl(photoInput.files[0]);
   }
 
+  payload.client_timezone = browserTimeZone();
   return payload;
 }
 
@@ -41,6 +42,7 @@ export function collectMedicationPayloads(form) {
     const quantityValue = getControl(form, `quantity_value_${productId}`)?.value.trim();
     return {
       taken_at: getControl(form, "taken_at").value,
+      client_timezone: browserTimeZone(),
       product_id: productId,
       quantity_value: quantityValue === "" ? null : Number(quantityValue),
       quantity_unit: product?.default_unit || null,

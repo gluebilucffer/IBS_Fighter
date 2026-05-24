@@ -4,6 +4,7 @@ import sqlite3
 
 from .db import get_connection
 from .models import TABLES, TRACKING_TABLES
+from .timezones import apply_time_metadata
 from .uploads import save_meal_photo
 
 
@@ -22,6 +23,8 @@ def normalize_payload(table: str, payload: dict, *, partial: bool = False) -> di
         raise ValueError(f"缺少必填字段: {names}")
 
     for field, field_type in fields.items():
+        if field in config.get("computed_fields", set()):
+            continue
         if field not in payload:
             continue
 
@@ -67,6 +70,8 @@ def medications_select_sql(where_sql: str = "") -> str:
         SELECT
             medications.id,
             medications.taken_at,
+            medications.taken_timezone,
+            medications.taken_at_utc,
             medications.product_id,
             medications.quantity_value,
             medications.quantity_unit,
@@ -114,6 +119,7 @@ def insert_record(table: str, payload: dict) -> dict:
     payload = dict(payload)
     extra_data = save_meal_photo(payload) if table == "meals" else {}
     data = normalize_payload(table, payload)
+    data = apply_time_metadata(table, payload, data)
     if table == "meals" and data.get("foods") is None:
         data["foods"] = ""
     data.update(extra_data)
@@ -134,6 +140,7 @@ def update_record(table: str, record_id: int, payload: dict) -> dict:
     payload = dict(payload)
     extra_data = save_meal_photo(payload) if table == "meals" else {}
     data = normalize_payload(table, payload, partial=True)
+    data = apply_time_metadata(table, payload, data)
     if table == "meals" and data.get("foods") is None:
         data["foods"] = ""
     data.update(extra_data)

@@ -3,6 +3,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS bowel_movements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     occurred_at TEXT NOT NULL,
+    occurred_timezone TEXT,
+    occurred_at_utc TEXT,
     bristol_type INTEGER NOT NULL CHECK (bristol_type BETWEEN 1 AND 7),
     location TEXT,
     urgency INTEGER CHECK (urgency IS NULL OR urgency BETWEEN 0 AND 5),
@@ -15,6 +17,8 @@ CREATE TABLE IF NOT EXISTS bowel_movements (
 CREATE TABLE IF NOT EXISTS meals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     eaten_at TEXT NOT NULL,
+    eaten_timezone TEXT,
+    eaten_at_utc TEXT,
     meal_type TEXT,
     location TEXT,
     foods TEXT,
@@ -40,6 +44,8 @@ CREATE TABLE IF NOT EXISTS medication_products (
 CREATE TABLE IF NOT EXISTS medications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     taken_at TEXT NOT NULL,
+    taken_timezone TEXT,
+    taken_at_utc TEXT,
     product_id INTEGER NOT NULL REFERENCES medication_products(id) ON DELETE RESTRICT,
     quantity_value REAL,
     quantity_unit TEXT,
@@ -52,6 +58,8 @@ CREATE TABLE IF NOT EXISTS medications (
 CREATE TABLE IF NOT EXISTS exercises (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,
+    started_timezone TEXT,
+    started_at_utc TEXT,
     activity_type TEXT NOT NULL,
     duration_minutes INTEGER CHECK (duration_minutes IS NULL OR duration_minutes >= 0),
     intensity TEXT,

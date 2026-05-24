@@ -19,6 +19,10 @@ services:
         value: /var/data/uploads
       - key: IBS_FIGHTER_COOKIE_SECURE
         value: "1"
+      - key: IBS_FIGHTER_DEFAULT_TIMEZONE
+        value: Pacific/Guadalcanal
+      - key: IBS_FIGHTER_LEGACY_TIMEZONE
+        value: Pacific/Port_Moresby
       - key: GOOGLE_ALLOWED_EMAILS
         value: gluebi.d.mao@gmail.com
       - key: SECRET_KEY

@@ -173,6 +173,7 @@ button.danger:hover {
 }
 
 .user-pill,
+.timezone-pill,
 .logout-link {
   display: inline-flex;
   align-items: center;

@@ -159,6 +159,8 @@ function recordDetails(table, record) {
     add("地点", record.location);
     add("急迫感", record.urgency);
     add("颜色", record.color);
+    add("时区", record.occurred_timezone);
+    add("UTC", record.occurred_at_utc);
     add("备注", record.notes);
   }
 
@@ -166,6 +168,8 @@ function recordDetails(table, record) {
     add("地点", record.location);
     add("描述", record.foods);
     add("饭后", record.symptoms_after);
+    add("时区", record.eaten_timezone);
+    add("UTC", record.eaten_at_utc);
     add("备注", record.notes);
   }
 
@@ -175,6 +179,8 @@ function recordDetails(table, record) {
     add("类型", record.product_type);
     add("数量", quantity);
     add("关系", record.timing_relation);
+    add("时区", record.taken_timezone);
+    add("UTC", record.taken_at_utc);
     add("备注", record.notes);
   }
 
@@ -189,6 +195,8 @@ function recordDetails(table, record) {
     add("时长", duration);
     add("强度", record.intensity);
     add("活动", record.activity_type);
+    add("时区", record.started_timezone);
+    add("UTC", record.started_at_utc);
     add("备注", record.notes);
   }
 

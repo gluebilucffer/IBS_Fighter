@@ -10,6 +10,8 @@
   - `IBS_FIGHTER_DATA_DIR=/var/data/data`
   - `IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads`
   - `IBS_FIGHTER_COOKIE_SECURE=1`
+  - `IBS_FIGHTER_DEFAULT_TIMEZONE=Pacific/Guadalcanal`
+  - `IBS_FIGHTER_LEGACY_TIMEZONE=Pacific/Port_Moresby`
   - `GOOGLE_ALLOWED_EMAILS=gluebi.d.mao@gmail.com`
   - `SECRET_KEY=<generated secret>`
   - `GOOGLE_CLIENT_ID=<Google OAuth web client id>`
@@ -66,3 +68,10 @@ Then place them on the Render persistent disk as:
 
 After restart, compare row counts with the local baseline before continuing to
 record new data online.
+
+## Time zones
+
+Existing records created before the time-zone migration are interpreted as
+Papua New Guinea time with `IBS_FIGHTER_LEGACY_TIMEZONE=Pacific/Port_Moresby`.
+New records keep the user's local browser time for display and store a converted
+UTC timestamp in the database for cross-region analysis.

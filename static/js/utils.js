@@ -17,6 +17,10 @@ export function defaultDateTime() {
   return `${datePart}T${time}`;
 }
 
+export function browserTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 export function showToast(message) {
   const toast = document.querySelector("#toast");
   toast.textContent = message;

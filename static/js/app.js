@@ -20,7 +20,7 @@ import {
 } from "./records.js";
 import { loadReport } from "./reports.js";
 import { state } from "./state.js";
-import { escapeHtml, showToast, today } from "./utils.js";
+import { browserTimeZone, escapeHtml, showToast, today } from "./utils.js";
 
 
 const dateInput = document.querySelector("#selected-date");
@@ -37,6 +37,7 @@ async function loadAuthState() {
   const payload = await requestJson("/api/auth/me");
   state.user = payload.user || null;
   state.aiMealEnabled = Boolean(payload.ai_meal_enabled);
+  state.clientTimezone = browserTimeZone();
   setCsrfToken(payload.csrf_token || "");
   renderAuthState();
 }
@@ -46,6 +47,11 @@ function renderAuthState() {
   const userEmail = document.querySelector("[data-user-email]");
   if (userEmail) {
     userEmail.textContent = state.user?.email || "未登录";
+  }
+
+  const timeZoneLabel = document.querySelector("[data-timezone-label]");
+  if (timeZoneLabel) {
+    timeZoneLabel.textContent = `时区 ${state.clientTimezone}`;
   }
 
   document.querySelectorAll("[data-ai-meal-panel]").forEach((panel) => {

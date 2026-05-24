@@ -79,6 +79,16 @@ IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads
 
 Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive 只作为备份副本，不作为 SQLite 主库。详细步骤见 `docs/render-deploy.md`。
 
+## 时区
+
+记录表单仍然按你设备当前的当地时间填写。前端会自动提交浏览器系统时区，后端同时保存：
+
+- 当地显示时间，例如 `2026-05-25T09:30`
+- IANA 时区，例如 `Pacific/Guadalcanal`
+- 统一 UTC 时间，例如 `2026-05-24T22:30:00Z`
+
+已有历史记录按 PNG 时区 `Pacific/Port_Moresby` 回填；之后在所罗门或其他地区出差时，会按设备系统时区转换。
+
 ## OpenAI 饮食识别测试
 
 OpenAI API key 保存在本机 `.env`，不要提交到 GitHub：

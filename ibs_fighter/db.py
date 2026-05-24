@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from .config import DB_PATH, SCHEMA_PATH, UPLOADS_DIR
+from .timezones import TIME_FIELDS, legacy_utc_for_local
 
 
 def init_database() -> None:
@@ -20,12 +21,14 @@ def migrate_database(conn: sqlite3.Connection) -> None:
     }
     if "color" not in bowel_columns:
         conn.execute("ALTER TABLE bowel_movements ADD COLUMN color TEXT")
+    ensure_time_metadata_columns(conn, "bowel_movements")
 
     meal_columns = {row[1] for row in conn.execute("PRAGMA table_info(meals)").fetchall()}
     if "photo_path" not in meal_columns:
         conn.execute("ALTER TABLE meals ADD COLUMN photo_path TEXT")
     if "photo_filename" not in meal_columns:
         conn.execute("ALTER TABLE meals ADD COLUMN photo_filename TEXT")
+    ensure_time_metadata_columns(conn, "meals")
 
     conn.execute(
         """
@@ -58,8 +61,51 @@ def migrate_database(conn: sqlite3.Connection) -> None:
     }
     if "product_id" not in medication_columns or "product_type" in medication_columns:
         rebuild_medications_table(conn)
+    ensure_time_metadata_columns(conn, "medications")
+    ensure_time_metadata_columns(conn, "exercises")
     backfill_medication_units(conn)
     drop_sleep_module(conn)
+
+
+def ensure_time_metadata_columns(conn: sqlite3.Connection, table: str) -> None:
+    local_field, timezone_field, utc_field = TIME_FIELDS[table]
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if timezone_field not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {timezone_field} TEXT")
+    if utc_field not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {utc_field} TEXT")
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_{utc_field} ON {table} ({utc_field})")
+    backfill_legacy_time_metadata(conn, table, local_field, timezone_field, utc_field)
+
+
+def backfill_legacy_time_metadata(
+    conn: sqlite3.Connection,
+    table: str,
+    local_field: str,
+    timezone_field: str,
+    utc_field: str,
+) -> None:
+    rows = conn.execute(
+        f"""
+        SELECT id, {local_field} AS local_value
+        FROM {table}
+        WHERE {local_field} IS NOT NULL
+          AND ({timezone_field} IS NULL OR {utc_field} IS NULL)
+        """
+    ).fetchall()
+    for row in rows:
+        try:
+            timezone_name, utc_value = legacy_utc_for_local(row["local_value"])
+        except ValueError:
+            continue
+        conn.execute(
+            f"""
+            UPDATE {table}
+            SET {timezone_field} = ?, {utc_field} = ?
+            WHERE id = ?
+            """,
+            (timezone_name, utc_value, row["id"]),
+        )
 
 
 def drop_sleep_module(conn: sqlite3.Connection) -> None:
@@ -130,6 +176,8 @@ def rebuild_medications_table(conn: sqlite3.Connection) -> None:
         CREATE TABLE medications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             taken_at TEXT NOT NULL,
+            taken_timezone TEXT,
+            taken_at_utc TEXT,
             product_id INTEGER NOT NULL REFERENCES medication_products(id) ON DELETE RESTRICT,
             quantity_value REAL,
             quantity_unit TEXT,
@@ -155,14 +203,16 @@ def rebuild_medications_table(conn: sqlite3.Connection) -> None:
         conn.execute(
             """
             INSERT INTO medications (
-                id, taken_at, product_id, quantity_value, quantity_unit,
+                id, taken_at, taken_timezone, taken_at_utc, product_id, quantity_value, quantity_unit,
                 timing_relation, notes, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row["id"],
                 row["taken_at"],
+                row["taken_timezone"] if "taken_timezone" in keys else None,
+                row["taken_at_utc"] if "taken_at_utc" in keys else None,
                 product_id,
                 row["quantity_value"] if "quantity_value" in keys else None,
                 row["quantity_unit"] if "quantity_unit" in keys else None,
