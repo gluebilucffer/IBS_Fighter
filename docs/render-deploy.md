@@ -14,9 +14,17 @@
   - `SECRET_KEY=<generated secret>`
   - `GOOGLE_CLIENT_ID=<Google OAuth web client id>`
   - `GOOGLE_CLIENT_SECRET=<Google OAuth web client secret>`
-  - `GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON or base64 JSON>`
-  - `GOOGLE_DRIVE_BACKUP_FOLDER_ID=<shared Drive folder id>`
   - `BACKUP_ADMIN_TOKEN=<generated secret>`
+
+Optional Google Drive backup environment:
+
+- `GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON or base64 JSON>`
+- `GOOGLE_DRIVE_BACKUP_FOLDER_ID=<shared Drive folder id>`
+
+If your Google Cloud organization blocks service account key creation with
+`iam.disableServiceAccountKeyCreation`, leave these unset for the first deploy.
+The app still works with Render persistent disk storage; only the manual Drive
+backup endpoint remains disabled until a keyless backup method is configured.
 
 ## Google OAuth
 
