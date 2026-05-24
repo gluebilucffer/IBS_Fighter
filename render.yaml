@@ -5,6 +5,7 @@ services:
     plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
     disk:
       name: ibs-fighter-data
       mountPath: /var/data
