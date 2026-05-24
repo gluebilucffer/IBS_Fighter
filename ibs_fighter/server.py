@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hmac
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from html import escape
 from http import HTTPStatus
 from urllib.parse import quote
@@ -29,6 +29,7 @@ from .config import (
     PORT,
     SECRET_KEY,
     SESSION_COOKIE_SECURE,
+    SESSION_DAYS,
     STATIC_DIR,
     UPLOADS_DIR,
 )
@@ -52,6 +53,8 @@ def create_app() -> Flask:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=SESSION_DAYS),
+        SESSION_REFRESH_EACH_REQUEST=True,
     )
 
     init_database()
@@ -69,10 +72,14 @@ def register_hooks(app: Flask) -> None:
         if request.path == "/api/admin/backups/drive" and backup_token_is_valid():
             return None
 
-        if AUTH_REQUIRED and not current_user():
+        user = current_user()
+        if AUTH_REQUIRED and not user:
             if request.path.startswith("/api/"):
                 return json_error("需要先用 Google 登录", HTTPStatus.UNAUTHORIZED)
             return redirect(f"/login?next={safe_next_path(request.path)}")
+
+        if AUTH_REQUIRED and user:
+            session.permanent = True
 
         if not AUTH_REQUIRED:
             session.setdefault(

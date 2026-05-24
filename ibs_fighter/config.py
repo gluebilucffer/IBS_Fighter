@@ -25,6 +25,14 @@ def load_local_env() -> None:
 
 load_local_env()
 
+
+def env_int(name: str, default: int, minimum: int = 1) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+    return max(minimum, value)
+
 IS_RENDER = bool(os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID"))
 DATA_DIR = Path(os.environ.get("IBS_FIGHTER_DATA_DIR", BASE_DIR / "data")).expanduser()
 DB_PATH = Path(
@@ -42,6 +50,7 @@ SESSION_COOKIE_SECURE = os.environ.get(
     "IBS_FIGHTER_COOKIE_SECURE",
     "1" if IS_RENDER else "0",
 ) not in {"0", "false", "False"}
+SESSION_DAYS = env_int("IBS_FIGHTER_SESSION_DAYS", 360)
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")

@@ -10,6 +10,7 @@
   - `IBS_FIGHTER_DATA_DIR=/var/data/data`
   - `IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads`
   - `IBS_FIGHTER_COOKIE_SECURE=1`
+  - `IBS_FIGHTER_SESSION_DAYS=360`
   - `IBS_FIGHTER_DEFAULT_TIMEZONE=Pacific/Guadalcanal`
   - `IBS_FIGHTER_LEGACY_TIMEZONE=Pacific/Port_Moresby`
   - `GOOGLE_ALLOWED_EMAILS=gluebi.d.mao@gmail.com`
@@ -36,6 +37,13 @@ Create a Google OAuth Web Client and add these redirect URIs:
 - `http://127.0.0.1:8765/auth/google/callback`
 
 Only emails listed in `GOOGLE_ALLOWED_EMAILS` can enter the app.
+
+## Login cookie lifetime
+
+The app uses a signed, HttpOnly, Secure Flask session cookie. After Google login,
+the session is marked permanent and defaults to `IBS_FIGHTER_SESSION_DAYS=360`.
+Closing mobile Chrome should not log the user out. Clicking the app's `退出`
+link still clears the session immediately by design.
 
 ## Google Drive backup
 

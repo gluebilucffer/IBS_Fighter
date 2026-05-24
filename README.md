@@ -79,6 +79,9 @@ IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads
 
 Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive 只作为备份副本，不作为 SQLite 主库。详细步骤见 `docs/render-deploy.md`。
 
+登录态使用安全的 HttpOnly cookie。默认 `IBS_FIGHTER_SESSION_DAYS=360`，
+所以手机或电脑关闭浏览器后不需要频繁重新登录；主动点击页面上的“退出”仍会立即清除登录态。
+
 ## 时区
 
 记录表单仍然按你设备当前的当地时间填写。前端会自动提交浏览器系统时区，后端同时保存：

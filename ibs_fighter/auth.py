@@ -116,6 +116,7 @@ def complete_google_login(code: str, state: str) -> dict:
         "name": claims.get("name") or email,
         "picture": claims.get("picture") or "",
     }
+    session.permanent = True
     session["user"] = user
     ensure_csrf_token()
     return user

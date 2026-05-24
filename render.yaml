@@ -19,6 +19,8 @@ services:
         value: /var/data/uploads
       - key: IBS_FIGHTER_COOKIE_SECURE
         value: "1"
+      - key: IBS_FIGHTER_SESSION_DAYS
+        value: "360"
       - key: IBS_FIGHTER_DEFAULT_TIMEZONE
         value: Pacific/Guadalcanal
       - key: IBS_FIGHTER_LEGACY_TIMEZONE
