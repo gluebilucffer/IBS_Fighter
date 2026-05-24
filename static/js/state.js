@@ -8,4 +8,6 @@ export const state = {
   reportDays: 7,
   reportModule: "bowel",
   report: null,
+  user: null,
+  aiMealEnabled: false,
 };

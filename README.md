@@ -16,6 +16,7 @@
 仅在这台电脑上使用：
 
 ```bash
+python3 -m pip install -r requirements.txt
 python3 IBS_Fighter.py
 ```
 
@@ -37,7 +38,13 @@ http://127.0.0.1:8765
 http://你的Mac局域网IP:8765
 ```
 
-这个阶段还没有登录系统。使用 `./start.sh` 会让同一局域网里的设备可以访问，请只在可信 Wi-Fi 下使用。
+公网版本需要 Google 登录。没有配置 Google OAuth 时，本地开发可以临时使用：
+
+```bash
+IBS_FIGHTER_AUTH_REQUIRED=0 python3 IBS_Fighter.py
+```
+
+使用 `./start.sh` 会让同一局域网里的设备可以访问，请只在可信 Wi-Fi 下使用。
 
 当前定位是本地个人版。一周试用稳定后发布到 GitHub 的仍然只是代码和说明，不包含你的本地数据库、照片或 Excel 原始记录。
 
@@ -52,6 +59,25 @@ data/ibs_fighter.sqlite3
 ```text
 uploads/
 ```
+
+## 公网部署
+
+当前部署目标是 Render Web Service + persistent disk：
+
+```text
+build command: pip install -r requirements.txt
+start command: gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT
+disk mount: /var/data
+```
+
+线上数据目录：
+
+```text
+IBS_FIGHTER_DATA_DIR=/var/data/data
+IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads
+```
+
+Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive 只作为备份副本，不作为 SQLite 主库。详细步骤见 `docs/render-deploy.md`。
 
 ## OpenAI 饮食识别测试
 

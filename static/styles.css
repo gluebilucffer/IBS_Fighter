@@ -172,6 +172,26 @@ button.danger:hover {
   font-weight: 760;
 }
 
+.user-pill,
+.logout-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.logout-link:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
 .main-nav {
   position: sticky;
   top: 0;

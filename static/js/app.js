@@ -1,4 +1,4 @@
-import { requestJson } from "./api.js";
+import { requestJson, setCsrfToken } from "./api.js";
 import { tableLabels, trackingTables } from "./constants.js";
 import {
   collectFormData,
@@ -24,6 +24,34 @@ import { escapeHtml, showToast, today } from "./utils.js";
 
 
 const dateInput = document.querySelector("#selected-date");
+
+
+async function initialize() {
+  await loadAuthState();
+  dateInput.value = today();
+  await loadDay();
+}
+
+
+async function loadAuthState() {
+  const payload = await requestJson("/api/auth/me");
+  state.user = payload.user || null;
+  state.aiMealEnabled = Boolean(payload.ai_meal_enabled);
+  setCsrfToken(payload.csrf_token || "");
+  renderAuthState();
+}
+
+
+function renderAuthState() {
+  const userEmail = document.querySelector("[data-user-email]");
+  if (userEmail) {
+    userEmail.textContent = state.user?.email || "未登录";
+  }
+
+  document.querySelectorAll("[data-ai-meal-panel]").forEach((panel) => {
+    panel.hidden = !state.aiMealEnabled;
+  });
+}
 
 
 async function loadDay() {
@@ -191,8 +219,7 @@ dateInput.addEventListener("change", () => {
 });
 
 
-dateInput.value = today();
-loadDay().catch((error) => showToast(error.message));
+initialize().catch((error) => showToast(error.message));
 
 
 async function analyzeMeal(button) {
