@@ -25,9 +25,16 @@
   box-sizing: border-box;
 }
 
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
+  max-width: 100%;
+  overflow-x: hidden;
   background:
     linear-gradient(135deg, rgb(15 95 86 / 6%) 0 24%, transparent 24% 100%),
     var(--bg);
@@ -41,6 +48,7 @@ input,
 select,
 textarea {
   font: inherit;
+  min-width: 0;
 }
 
 button {
@@ -52,6 +60,12 @@ button {
   color: white;
   font-weight: 760;
   cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+img,
+svg {
+  max-width: 100%;
 }
 
 button:hover {
@@ -101,6 +115,7 @@ button.danger:hover {
 .brand-block {
   display: grid;
   gap: 5px;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -132,12 +147,14 @@ button.danger:hover {
   margin: 0;
   color: var(--muted);
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .header-actions {
   display: flex;
   align-items: end;
   gap: 12px;
+  min-width: 0;
 }
 
 .date-control {
@@ -162,7 +179,9 @@ button.danger:hover {
 .privacy-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 42px;
+  max-width: 100%;
   padding: 0 12px;
   border: 1px solid var(--primary-soft);
   border-radius: 999px;
@@ -177,7 +196,10 @@ button.danger:hover {
 .logout-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 42px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -186,6 +208,7 @@ button.danger:hover {
   font-size: 13px;
   font-weight: 720;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .logout-link:hover {
@@ -208,6 +231,7 @@ button.danger:hover {
 .nav-button,
 .record-tab {
   flex: 0 0 auto;
+  min-width: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -258,12 +282,14 @@ main {
   margin: 8px 0 10px;
   font-size: 34px;
   line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 
 .hero-metric {
   display: grid;
   align-content: center;
   gap: 8px;
+  min-width: 0;
   padding: 18px;
   border: 1px solid var(--primary-soft);
   border-radius: 10px;
@@ -308,6 +334,7 @@ main {
   display: grid;
   align-content: start;
   gap: 6px;
+  min-width: 0;
   min-height: 112px;
   padding: 16px;
   text-align: left;
@@ -335,6 +362,7 @@ main {
 .panel,
 .chart-card,
 .setting-card {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
@@ -751,6 +779,7 @@ textarea:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 9px;
+  min-width: 0;
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -777,10 +806,12 @@ textarea:focus {
 .record-title {
   margin: 0;
   font-size: 15px;
+  overflow-wrap: anywhere;
 }
 
 .record-time {
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .record-body {
@@ -789,10 +820,12 @@ textarea:focus {
   color: #35423e;
   font-size: 13px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .record-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   flex: 0 0 auto;
 }
@@ -1194,40 +1227,57 @@ textarea:focus {
 
 @media (max-width: 720px) {
   body {
-    padding-bottom: 74px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
 
   .app-header {
     align-items: stretch;
     flex-direction: column;
-    padding: 22px 16px 16px;
+    gap: 16px;
+    padding: calc(18px + env(safe-area-inset-top)) 14px 14px;
   }
 
   .app-header h1 {
-    font-size: 32px;
+    font-size: 31px;
   }
 
   .header-actions {
     align-items: stretch;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .date-control {
+    grid-column: 1 / -1;
     min-width: 0;
   }
 
-  .privacy-badge {
-    justify-content: center;
+  .privacy-badge,
+  .timezone-pill {
+    grid-column: 1 / -1;
+  }
+
+  .privacy-badge,
+  .user-pill,
+  .timezone-pill,
+  .logout-link {
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 12px;
+    text-align: center;
   }
 
   .main-nav {
     position: fixed;
     top: auto;
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
     z-index: 30;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
     padding: 6px;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -1236,34 +1286,49 @@ textarea:focus {
   }
 
   .nav-button {
-    flex: 1;
     min-height: 48px;
-    padding: 8px 6px;
-    font-size: 13px;
+    padding: 8px 2px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   main {
-    padding: 16px 14px 28px;
+    padding: 14px 12px 28px;
   }
 
   .today-hero {
     min-height: 0;
-    padding: 18px;
+    padding: 16px;
   }
 
   .today-hero h2 {
-    font-size: 28px;
+    font-size: clamp(24px, 7vw, 28px);
+    line-height: 1.14;
   }
 
-  .quick-actions,
-  .summary-grid,
-  .report-summary-grid,
   .settings-grid {
     grid-template-columns: 1fr;
   }
 
+  .quick-actions,
+  .summary-grid,
+  .report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .quick-actions button {
-    min-height: 92px;
+    min-height: 88px;
+    padding: 13px;
+  }
+
+  .quick-actions span {
+    font-size: 15px;
+  }
+
+  .quick-actions small,
+  .hero-metric small {
+    font-size: 12px;
   }
 
   .section-heading,
@@ -1275,11 +1340,15 @@ textarea:focus {
   }
 
   .record-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
+    overflow: visible;
   }
 
   .record-tab {
-    min-width: 74px;
+    min-width: 0;
+    padding-inline: 10px;
   }
 
   .two-col,
@@ -1309,9 +1378,39 @@ textarea:focus {
     grid-column: 2;
   }
 
+  .fixed-unit {
+    justify-content: flex-start;
+    overflow-wrap: anywhere;
+  }
+
   .record-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .record-actions button {
+    flex: 1 1 72px;
+  }
+
+  .report-controls,
+  .segmented-control {
+    width: 100%;
+  }
+
+  .segmented-control button {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .rank-item,
+  .attention-item {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .date-chip-list {
+    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
   }
 
   .record:has(.meal-photo) {
@@ -1326,5 +1425,32 @@ textarea:focus {
   .meal-photo-frame {
     justify-self: center;
     max-width: min(100%, 340px);
+  }
+}
+
+@media (max-width: 360px) {
+  .app-header h1 {
+    font-size: 28px;
+  }
+
+  .header-actions,
+  .quick-actions,
+  .summary-grid,
+  .report-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bristol-scale,
+  .urgency-scale {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-nav {
+    left: max(6px, env(safe-area-inset-left));
+    right: max(6px, env(safe-area-inset-right));
+  }
+
+  .nav-button {
+    font-size: 11px;
   }
 }
