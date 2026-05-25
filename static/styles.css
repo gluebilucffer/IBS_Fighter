@@ -28,6 +28,8 @@
 html {
   max-width: 100%;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -533,11 +535,31 @@ select,
 textarea {
   width: 100%;
   min-height: 44px;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 11px;
   background: #fffdfa;
   color: var(--ink);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
 }
 
 textarea {
