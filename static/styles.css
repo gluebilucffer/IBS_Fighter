@@ -1094,6 +1094,146 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.control-chart {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.control-chart svg {
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+  overflow: visible;
+}
+
+.control-legend,
+.control-outliers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-legend span,
+.control-legend strong,
+.control-outlier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffdfa;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.control-legend strong {
+  color: var(--primary-dark);
+}
+
+.control-outlier {
+  border-color: #e2b8aa;
+  background: var(--danger-soft);
+  color: #8f372b;
+}
+
+.control-outlier.safe {
+  border-color: #bfd8ca;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.control-outlier.muted {
+  background: #fffdfa;
+  color: var(--muted);
+}
+
+.legend-safe,
+.legend-unsafe {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.legend-safe {
+  background: var(--primary);
+}
+
+.legend-unsafe {
+  background: #b84a3b;
+}
+
+.control-safe-band {
+  fill: rgb(31 105 94 / 12%);
+}
+
+.control-grid-line,
+.control-limit-line,
+.control-axis-line {
+  vector-effect: non-scaling-stroke;
+}
+
+.control-grid-line {
+  stroke: #e4ddd1;
+  stroke-width: 1;
+}
+
+.control-limit-line {
+  stroke: rgb(31 105 94 / 55%);
+  stroke-dasharray: 5 5;
+  stroke-width: 1.4;
+}
+
+.control-axis-line {
+  stroke: #b9aea0;
+  stroke-width: 1.2;
+}
+
+.control-value-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.control-point circle {
+  stroke: #fffdfa;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.control-point.safe circle {
+  fill: var(--primary);
+}
+
+.control-point.unsafe circle {
+  fill: #b84a3b;
+}
+
+.control-point text {
+  fill: #8f372b;
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.control-axis-label,
+.control-safe-label,
+.control-axis-caption {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.control-safe-label {
+  fill: var(--primary-dark);
+}
+
 .rank-list,
 .attention-list,
 .insight-list,
@@ -1380,6 +1520,23 @@ textarea:focus {
 
   .bar-value {
     justify-self: start;
+  }
+
+  .control-chart svg {
+    min-height: 260px;
+  }
+
+  .control-legend,
+  .control-outliers {
+    align-items: stretch;
+  }
+
+  .control-legend span,
+  .control-legend strong,
+  .control-outlier {
+    flex: 1 1 130px;
+    justify-content: center;
+    text-align: center;
   }
 
   .bristol-scale {

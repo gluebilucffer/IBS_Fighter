@@ -26,8 +26,11 @@ function renderReport(report) {
 
 function updateReportShell(report) {
   const moduleLabel = report.module === "medications" ? "用药报表" : "排便报表";
+  const rangeNote = report.range.clamped_to_tracking_start
+    ? ` · 从 ${report.range.tracking_start_date} 起统计`
+    : "";
   document.querySelector("#report-title").textContent = moduleLabel;
-  document.querySelector("#report-range").textContent = `${report.range.start_date} 至 ${report.range.end_date}`;
+  document.querySelector("#report-range").textContent = `${report.range.start_date} 至 ${report.range.end_date}${rangeNote}`;
 
   document.querySelectorAll("[data-report-module]").forEach((button) => {
     button.classList.toggle("active", button.dataset.reportModule === report.module);
@@ -36,7 +39,8 @@ function updateReportShell(report) {
     panel.classList.toggle("active", panel.dataset.reportModulePanel === report.module);
   });
   document.querySelectorAll("[data-report-days]").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.reportDays) === report.range.days);
+    const requestedDays = report.range.requested_days ?? report.range.days;
+    button.classList.toggle("active", Number(button.dataset.reportDays) === requestedDays);
   });
 }
 
@@ -47,9 +51,15 @@ function renderBowelReport(report) {
   document.querySelector("#report-total-events").textContent = summary.total_events ?? 0;
   document.querySelector("#report-avg-events-day").textContent = summary.avg_events_per_day ?? 0;
   document.querySelector("#report-avg-bristol").textContent = summary.avg_bristol ?? "-";
-  document.querySelector("#report-normal-rate").textContent = `${summary.normal_rate ?? 0}%`;
+  document.querySelector("#report-normal-rate").textContent = `${summary.safe_rate ?? summary.normal_rate ?? 0}%`;
   document.querySelector("#report-abnormal-count").textContent = summary.abnormal_count ?? 0;
   document.querySelector("#report-urgent-count").textContent = summary.urgent_count ?? 0;
+
+  renderBristolControlChart(
+    "#report-control-chart",
+    report.control_points || [],
+    report.control_limits || { min: 1, max: 7, safe_min: 4, safe_max: 5 },
+  );
 
   renderBarRows("#report-bowel-chart", report.daily || [], {
     emptyText: "这个周期还没有排便记录",
@@ -87,6 +97,99 @@ function renderBowelReport(report) {
   renderNoRecordDays(report.no_record_dates || [], report.range.days);
   renderAttentionDays(report.attention_days || []);
   renderInsights(report.insights || []);
+}
+
+
+function renderBristolControlChart(selector, points, limits) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+
+  if (!points.length) {
+    container.innerHTML = '<div class="empty">这个周期还没有布里斯托等级数据</div>';
+    return;
+  }
+
+  const width = 720;
+  const height = 300;
+  const padding = { top: 22, right: 28, bottom: 34, left: 46 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const minValue = Number(limits.min) || 1;
+  const maxValue = Number(limits.max) || 7;
+  const safeMin = Number(limits.safe_min) || 4;
+  const safeMax = Number(limits.safe_max) || 5;
+  const xFor = (index) => {
+    if (points.length === 1) return padding.left + chartWidth / 2;
+    return padding.left + (index / (points.length - 1)) * chartWidth;
+  };
+  const yFor = (value) => {
+    const bounded = Math.min(maxValue, Math.max(minValue, Number(value) || minValue));
+    return padding.top + ((maxValue - bounded) / (maxValue - minValue)) * chartHeight;
+  };
+  const pointCoords = points.map((point, index) => ({
+    ...point,
+    x: xFor(index),
+    y: yFor(point.bristol_type),
+  }));
+  const path = pointCoords
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(" ");
+  const safeTop = yFor(safeMax);
+  const safeBottom = yFor(safeMin);
+  const unsafePoints = pointCoords.filter((point) => !point.is_safe);
+  const safeRate = Math.round(((points.length - unsafePoints.length) / points.length) * 1000) / 10;
+  const yTicks = [7, 6, 5, 4, 3, 2, 1];
+
+  const svg = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="布里斯托控制图，安全区为 4 到 5">
+      <rect class="control-safe-band" x="${padding.left}" y="${safeTop}" width="${chartWidth}" height="${safeBottom - safeTop}"></rect>
+      ${yTicks.map((tick) => {
+        const y = yFor(tick);
+        const isLimit = tick === safeMin || tick === safeMax;
+        return `
+          <line class="${isLimit ? "control-limit-line" : "control-grid-line"}" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+          <text class="control-axis-label" x="${padding.left - 12}" y="${y + 4}" text-anchor="end">${tick}</text>
+        `;
+      }).join("")}
+      <line class="control-axis-line" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}"></line>
+      <line class="control-axis-line" x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}"></line>
+      <text class="control-safe-label" x="${width - padding.right - 8}" y="${safeTop + 18}" text-anchor="end">安全 4-5</text>
+      <path class="control-value-line" d="${path}"></path>
+      ${pointCoords.map((point) => `
+        <g class="control-point ${point.is_safe ? "safe" : "unsafe"}">
+          <circle cx="${point.x}" cy="${point.y}" r="${point.is_safe ? 6 : 8}"></circle>
+          ${point.is_safe ? "" : `<text x="${point.x}" y="${point.y - 13}" text-anchor="middle">${point.bristol_type}</text>`}
+          <title>${escapeHtml(`${point.date} · Bristol ${point.bristol_type} · ${point.is_safe ? "安全" : "非安全"}`)}</title>
+        </g>
+      `).join("")}
+      <text class="control-axis-caption" x="${padding.left}" y="${height - 10}">${escapeHtml(shortDate(points[0].date))}</text>
+      <text class="control-axis-caption" x="${width - padding.right}" y="${height - 10}" text-anchor="end">${escapeHtml(shortDate(points[points.length - 1].date))}</text>
+    </svg>
+  `;
+
+  const outlierList = unsafePoints.length
+    ? `
+      <div class="control-outliers">
+        ${unsafePoints.slice(0, 8).map((point) => `
+          <span class="control-outlier">
+            <b>${escapeHtml(shortDate(point.date))}</b>
+            Bristol ${escapeHtml(String(point.bristol_type))}
+          </span>
+        `).join("")}
+        ${unsafePoints.length > 8 ? `<span class="control-outlier muted">+${unsafePoints.length - 8}</span>` : ""}
+      </div>
+    `
+    : '<div class="control-outliers"><span class="control-outlier safe">全部在安全区</span></div>';
+
+  container.innerHTML = `
+    <div class="control-legend">
+      <span><i class="legend-safe"></i>安全区 4-5</span>
+      <span><i class="legend-unsafe"></i>非安全值 ${unsafePoints.length} 次</span>
+      <strong>安全率 ${safeRate}%</strong>
+    </div>
+    ${svg}
+    ${outlierList}
+  `;
 }
 
 
@@ -335,8 +438,8 @@ function renderMedicationHighLoadDays(rows) {
 
 function dailyMetaText(row) {
   const parts = [];
-  if (row.hard_count) parts.push(`偏硬 ${row.hard_count}`);
-  if (row.loose_count) parts.push(`偏稀 ${row.loose_count}`);
+  if (row.below_count) parts.push(`低于安全区 ${row.below_count}`);
+  if (row.above_count) parts.push(`高于安全区 ${row.above_count}`);
   if (row.urgent_count) parts.push(`急迫 ${row.urgent_count}`);
   if (row.count >= 3) parts.push("一天多次");
   if (!parts.length && row.dominant_color) parts.push(row.dominant_color);

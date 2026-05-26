@@ -4,6 +4,9 @@ import sqlite3
 from datetime import date, timedelta
 
 
+REPORT_TRACKING_START_DATE = date(2026, 5, 12)
+BRISTOL_SAFE_LEVELS = {4, 5}
+
 BRISTOL_LABELS = {
     1: "1 硬球状",
     2: "2 结块香肠状",
@@ -15,9 +18,9 @@ BRISTOL_LABELS = {
 }
 
 QUALITY_BUCKETS = {
-    "hard": {"label": "偏硬", "levels": {1, 2}},
-    "normal": {"label": "相对正常", "levels": {3, 4, 5}},
-    "loose": {"label": "偏稀", "levels": {6, 7}},
+    "below": {"label": "低于安全区", "levels": {1, 2, 3}},
+    "safe": {"label": "安全区", "levels": BRISTOL_SAFE_LEVELS},
+    "above": {"label": "高于安全区", "levels": {6, 7}},
 }
 
 
@@ -48,7 +51,10 @@ def safe_rate(part: int, whole: int) -> float:
     return round(part / whole * 100, 1)
 
 
-def report_range(end_date_text: str | None, days: int) -> tuple[int, date, date, list[str]]:
+def report_range(
+    end_date_text: str | None,
+    days: int,
+) -> tuple[int, int, date, date, list[str], bool]:
     if days not in {7, 30}:
         days = 7
 
@@ -57,9 +63,18 @@ def report_range(end_date_text: str | None, days: int) -> tuple[int, date, date,
     except ValueError as exc:
         raise ValueError("报表日期格式不正确") from exc
 
-    start = end - timedelta(days=days - 1)
-    date_keys = [(start + timedelta(days=index)).isoformat() for index in range(days)]
-    return days, start, end, date_keys
+    requested_days = days
+    requested_start = end - timedelta(days=requested_days - 1)
+    start = max(requested_start, REPORT_TRACKING_START_DATE)
+    if end < REPORT_TRACKING_START_DATE:
+        date_keys: list[str] = []
+    else:
+        effective_days = (end - start).days + 1
+        date_keys = [
+            (start + timedelta(days=index)).isoformat()
+            for index in range(effective_days)
+        ]
+    return requested_days, len(date_keys), start, end, date_keys, start != requested_start
 
 
 def build_bowel_report(
@@ -67,9 +82,20 @@ def build_bowel_report(
     end_date_text: str | None,
     days: int,
 ) -> dict:
-    days, start, end, date_keys = report_range(end_date_text, days)
+    requested_days, effective_days, start, end, date_keys, clamped = report_range(
+        end_date_text,
+        days,
+    )
     rows = fetch_bowel_rows(conn, start.isoformat(), end.isoformat())
-    return build_bowel_report_from_rows(rows, date_keys, days, start.isoformat(), end.isoformat())
+    return build_bowel_report_from_rows(
+        rows,
+        date_keys,
+        requested_days,
+        effective_days,
+        start.isoformat(),
+        end.isoformat(),
+        clamped,
+    )
 
 
 def build_medication_report(
@@ -77,14 +103,19 @@ def build_medication_report(
     end_date_text: str | None,
     days: int,
 ) -> dict:
-    days, start, end, date_keys = report_range(end_date_text, days)
+    requested_days, effective_days, start, end, date_keys, clamped = report_range(
+        end_date_text,
+        days,
+    )
     rows = fetch_medication_rows(conn, start.isoformat(), end.isoformat())
     return build_medication_report_from_rows(
         rows,
         date_keys,
-        days,
+        requested_days,
+        effective_days,
         start.isoformat(),
         end.isoformat(),
+        clamped,
     )
 
 
@@ -148,9 +179,11 @@ def fetch_medication_rows(
 def build_bowel_report_from_rows(
     rows: list[dict],
     date_keys: list[str],
-    days: int,
+    requested_days: int,
+    effective_days: int,
     start_date: str,
     end_date: str,
+    clamped_to_tracking_start: bool,
 ) -> dict:
     daily = {
         day: {
@@ -158,9 +191,9 @@ def build_bowel_report_from_rows(
             "count": 0,
             "avg_bristol": None,
             "abnormal_count": 0,
-            "hard_count": 0,
-            "loose_count": 0,
-            "normal_count": 0,
+            "below_count": 0,
+            "safe_count": 0,
+            "above_count": 0,
             "urgent_count": 0,
             "colors": {},
             "locations": {},
@@ -176,6 +209,7 @@ def build_bowel_report_from_rows(
     color_counts: dict[str, dict] = {}
     location_counts: dict[str, dict] = {}
     bristol_values: list[int] = []
+    control_points: list[dict] = []
 
     for item in rows:
         day = (item.get("occurred_at") or "")[:10]
@@ -200,8 +234,9 @@ def build_bowel_report_from_rows(
             bucket = bristol_quality_bucket(bristol)
             quality_counts[bucket]["count"] += 1
             day_row[f"{bucket}_count"] += 1
-            if bucket != "normal":
+            if bucket != "safe":
                 day_row["abnormal_count"] += 1
+            control_points.append(build_control_point(item, len(control_points) + 1, bristol))
 
         if urgency is not None and urgency >= 3:
             day_row["urgent_count"] += 1
@@ -216,7 +251,8 @@ def build_bowel_report_from_rows(
         daily_rows.append(row)
 
     total_events = len(rows)
-    abnormal_count = quality_counts["hard"]["count"] + quality_counts["loose"]["count"]
+    safe_count = quality_counts["safe"]["count"]
+    abnormal_count = total_events - safe_count
     urgent_count = sum(row["urgent_count"] for row in daily_rows)
     days_with_records = sum(1 for row in daily_rows if row["count"] > 0)
     no_record_days = [row["date"] for row in daily_rows if row["count"] == 0]
@@ -230,10 +266,13 @@ def build_bowel_report_from_rows(
     return {
         "module": "bowel",
         "range": {
-            "days": days,
+            "days": effective_days,
+            "requested_days": requested_days,
             "start_date": start_date,
             "end_date": end_date,
             "dates": date_keys,
+            "tracking_start_date": REPORT_TRACKING_START_DATE.isoformat(),
+            "clamped_to_tracking_start": clamped_to_tracking_start,
         },
         "summary": {
             "total_events": total_events,
@@ -244,7 +283,9 @@ def build_bowel_report_from_rows(
                 [row["count"] for row in daily_rows if row["count"] > 0]
             ),
             "avg_bristol": safe_average(bristol_values),
-            "normal_rate": safe_rate(quality_counts["normal"]["count"], total_events),
+            "safe_count": safe_count,
+            "safe_rate": safe_rate(safe_count, total_events),
+            "normal_rate": safe_rate(safe_count, total_events),
             "abnormal_count": abnormal_count,
             "abnormal_rate": safe_rate(abnormal_count, total_events),
             "urgent_count": urgent_count,
@@ -263,6 +304,13 @@ def build_bowel_report_from_rows(
         "quality_distribution": list(quality_counts.values()),
         "color_distribution": sorted_rank_rows(color_counts, "count"),
         "location_distribution": sorted_rank_rows(location_counts, "count"),
+        "control_limits": {
+            "min": 1,
+            "max": 7,
+            "safe_min": min(BRISTOL_SAFE_LEVELS),
+            "safe_max": max(BRISTOL_SAFE_LEVELS),
+        },
+        "control_points": control_points,
         "attention_days": attention_days,
         "no_record_dates": no_record_days,
         "insights": build_bowel_insights(
@@ -272,7 +320,7 @@ def build_bowel_report_from_rows(
             urgent_count=urgent_count,
             frequent_days=len(frequent_days),
             no_record_days=len(no_record_days),
-            days=days,
+            days=effective_days,
         ),
     }
 
@@ -280,9 +328,11 @@ def build_bowel_report_from_rows(
 def build_medication_report_from_rows(
     rows: list[dict],
     date_keys: list[str],
-    days: int,
+    requested_days: int,
+    effective_days: int,
     start_date: str,
     end_date: str,
+    clamped_to_tracking_start: bool,
 ) -> dict:
     daily = {
         day: {
@@ -372,10 +422,13 @@ def build_medication_report_from_rows(
     return {
         "module": "medications",
         "range": {
-            "days": days,
+            "days": effective_days,
+            "requested_days": requested_days,
             "start_date": start_date,
             "end_date": end_date,
             "dates": date_keys,
+            "tracking_start_date": REPORT_TRACKING_START_DATE.isoformat(),
+            "clamped_to_tracking_start": clamped_to_tracking_start,
         },
         "summary": {
             "total_records": total_records,
@@ -415,7 +468,7 @@ def build_medication_report_from_rows(
             top_timing_relation=timing_rows[0] if timing_rows else None,
             high_load_days=len(high_load_days),
             no_record_days=len(no_record_days),
-            days=days,
+            days=effective_days,
         ),
     }
 
@@ -424,7 +477,34 @@ def bristol_quality_bucket(bristol_type: int) -> str:
     for key, config in QUALITY_BUCKETS.items():
         if bristol_type in config["levels"]:
             return key
-    return "normal"
+    return "safe"
+
+
+def is_bristol_safe(bristol_type: int) -> bool:
+    return bristol_type in BRISTOL_SAFE_LEVELS
+
+
+def build_control_point(item: dict, index: int, bristol_type: int) -> dict:
+    is_safe = is_bristol_safe(bristol_type)
+    if is_safe:
+        status = "safe"
+    elif bristol_type < min(BRISTOL_SAFE_LEVELS):
+        status = "below"
+    else:
+        status = "above"
+
+    return {
+        "index": index,
+        "date": (item.get("occurred_at") or "")[:10],
+        "occurred_at": item.get("occurred_at"),
+        "bristol_type": bristol_type,
+        "label": BRISTOL_LABELS.get(bristol_type, str(bristol_type)),
+        "is_safe": is_safe,
+        "status": status,
+        "urgency": item.get("urgency"),
+        "location": item.get("location") or "",
+        "color": item.get("color") or "",
+    }
 
 
 def increment_rank(rows: dict[str, dict], label: str) -> None:
@@ -443,10 +523,10 @@ def top_label(counts: dict[str, int]) -> str | None:
 
 def build_attention_day(row: dict) -> dict:
     reasons = []
-    if row["hard_count"]:
-        reasons.append(f"偏硬 {row['hard_count']} 次")
-    if row["loose_count"]:
-        reasons.append(f"偏稀 {row['loose_count']} 次")
+    if row["below_count"]:
+        reasons.append(f"低于安全区 {row['below_count']} 次")
+    if row["above_count"]:
+        reasons.append(f"高于安全区 {row['above_count']} 次")
     if row["urgent_count"]:
         reasons.append(f"急迫 {row['urgent_count']} 次")
     if row["count"] >= 3:
@@ -478,14 +558,14 @@ def build_bowel_insights(
     insights = []
     if avg_bristol is not None:
         if avg_bristol >= 5.5:
-            insights.append("整体形态偏稀，后续可以重点对照饮食、用药和急迫感。")
-        elif avg_bristol <= 2.5:
-            insights.append("整体形态偏硬，后续可以留意无排便日、饮水和运动。")
+            insights.append("平均等级高于安全区，后续可以重点对照饮食、用药和急迫感。")
+        elif avg_bristol < 4:
+            insights.append("平均等级低于安全区，后续可以留意无排便日、饮水和运动。")
         else:
-            insights.append("平均布里斯托等级处在相对可观察区间，重点看波动日。")
+            insights.append("平均布里斯托等级接近 4-5 安全区，重点看控制图里的越界点。")
 
     if abnormal_rate >= 30:
-        insights.append(f"偏硬或偏稀记录占 {abnormal_rate}%，建议优先查看这些日期前后的饮食和用药。")
+        insights.append(f"非安全值占 {abnormal_rate}%，建议优先查看控制图标记日期前后的饮食和用药。")
 
     if urgent_count:
         insights.append(f"有 {urgent_count} 次急迫感较高的记录，可以作为 IBS 触发因素分析的重点样本。")

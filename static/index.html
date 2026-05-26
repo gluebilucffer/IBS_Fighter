@@ -375,14 +375,14 @@
                   <small>布里斯托 1-7</small>
                 </article>
                 <article class="summary-card">
-                  <span>相对正常</span>
+                  <span>安全区间</span>
                   <strong id="report-normal-rate">0%</strong>
-                  <small>3-5 级占比</small>
+                  <small>Bristol 4-5 占比</small>
                 </article>
                 <article class="summary-card">
-                  <span>偏硬/偏稀</span>
+                  <span>非安全值</span>
                   <strong id="report-abnormal-count">0</strong>
-                  <small>1-2 或 6-7 级</small>
+                  <small>1-3 或 6-7 级</small>
                 </article>
                 <article class="summary-card">
                   <span>急迫感</span>
@@ -392,6 +392,14 @@
               </section>
 
               <section class="report-grid" aria-label="排便趋势图">
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>布里斯托控制图</h3>
+                    <span>安全区 Bristol 4-5，越界自动标记</span>
+                  </div>
+                  <div class="control-chart" id="report-control-chart"></div>
+                </article>
+
                 <article class="chart-card wide">
                   <div class="chart-heading">
                     <h3>每日趋势</h3>
