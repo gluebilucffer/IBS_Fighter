@@ -61,28 +61,16 @@ function renderBowelReport(report) {
     report.control_limits || { min: 1, max: 7, safe_min: 4, safe_max: 5 },
   );
 
-  renderBarRows("#report-bowel-chart", report.daily || [], {
-    emptyText: "这个周期还没有排便记录",
-    label: (row) => shortDate(row.date),
-    value: (row) => row.count,
-    valueText: (row) => `${row.count} 次 · 均 ${row.avg_bristol ?? "-"}`,
-    meta: (row) => dailyMetaText(row),
-  });
-
-  renderBarRows("#report-bristol-chart", report.bristol_distribution || [], {
+  renderVerticalBarChart("#report-bristol-chart", report.bristol_distribution || [], {
     emptyText: "还没有布里斯托等级数据",
     label: (row) => String(row.type),
     value: (row) => row.count,
-    valueText: (row) => `${row.count} 次 · ${row.rate}%`,
-    meta: (row) => row.label.replace(`${row.type} `, ""),
+    valueText: (row) => `${row.count} 次`,
+    meta: (row) => `${row.rate}%`,
+    isSafe: (row) => row.type === 4 || row.type === 5,
   });
 
-  renderBarRows("#report-quality-chart", report.quality_distribution || [], {
-    emptyText: "还没有可归类的排便记录",
-    label: (row) => row.label,
-    value: (row) => row.count,
-    valueText: (row) => `${row.count} 次`,
-  });
+  renderQualitySummary(report.quality_distribution || [], summary);
 
   renderRankList("#report-color-list", report.color_distribution || [], {
     emptyText: "暂无颜色记录",
@@ -193,6 +181,72 @@ function renderBristolControlChart(selector, points, limits) {
 }
 
 
+function renderVerticalBarChart(selector, rows, options) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+  const values = rows.map((row) => Number(options.value(row)) || 0);
+  const maxValue = Math.max(...values, 1);
+  const hasData = values.some((value) => value > 0);
+  if (!hasData) {
+    container.innerHTML = `<div class="empty">${escapeHtml(options.emptyText || "暂无数据")}</div>`;
+    return;
+  }
+
+  container.innerHTML = rows
+    .map((row) => {
+      const value = Number(options.value(row)) || 0;
+      const height = value > 0 ? Math.max(6, Math.round((value / maxValue) * 100)) : 0;
+      const safeClass = options.isSafe?.(row) ? " safe" : "";
+      return `
+        <div class="vertical-bar${safeClass}">
+          <div class="vertical-bar-value">${escapeHtml(String(options.valueText(row)))}</div>
+          <div class="vertical-bar-track" aria-hidden="true">
+            <span class="vertical-bar-fill" style="height: ${height}%"></span>
+          </div>
+          <div class="vertical-bar-label">
+            <strong>${escapeHtml(String(options.label(row)))}</strong>
+            <span>${escapeHtml(String(options.meta?.(row) || ""))}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+
+function renderQualitySummary(rows, summary) {
+  const container = document.querySelector("#report-quality-summary");
+  if (!container) return;
+  const total = Number(summary.total_events) || rows.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+  if (!total) {
+    container.innerHTML = '<div class="empty">还没有可归类的排便记录</div>';
+    return;
+  }
+
+  const safeCount = Number(summary.safe_count) || 0;
+  const abnormalCount = Number(summary.abnormal_count) || 0;
+  const safeRate = summary.safe_rate ?? 0;
+  const detailRows = rows.filter((row) => Number(row.count) > 0);
+  const detailText = detailRows
+    .map((row) => {
+      const count = Number(row.count) || 0;
+      const rate = Math.round((count / total) * 1000) / 10;
+      return `${row.label} ${count} 次（${rate}%）`;
+    })
+    .join("；");
+
+  container.innerHTML = `
+    <p>
+      这个周期共 ${escapeHtml(String(total))} 次排便，安全区 4-5 有
+      <b>${escapeHtml(String(safeCount))}</b> 次，占
+      <b>${escapeHtml(String(safeRate))}%</b>；非安全值
+      <b>${escapeHtml(String(abnormalCount))}</b> 次。
+    </p>
+    <small>${escapeHtml(detailText || "暂无形态分布细节")}</small>
+  `;
+}
+
+
 function renderMedicationReport(report) {
   const summary = report.summary || {};
   const topProduct = summary.top_product;
@@ -214,14 +268,6 @@ function renderMedicationReport(report) {
   document.querySelector("#med-report-top-timing-meta").textContent = topTiming
     ? `${topTiming.count} 次`
     : "最常见";
-
-  renderBarRows("#med-report-daily-chart", report.daily || [], {
-    emptyText: "这个周期还没有用药记录",
-    label: (row) => shortDate(row.date),
-    value: (row) => row.count,
-    valueText: (row) => `${row.count} 条`,
-    meta: (row) => medicationDailyMeta(row),
-  });
 
   renderMedicationProductList(report.product_usage || []);
 
@@ -433,22 +479,4 @@ function renderMedicationHighLoadDays(rows) {
       `;
     })
     .join("");
-}
-
-
-function dailyMetaText(row) {
-  const parts = [];
-  if (row.below_count) parts.push(`低于安全区 ${row.below_count}`);
-  if (row.above_count) parts.push(`高于安全区 ${row.above_count}`);
-  if (row.urgent_count) parts.push(`急迫 ${row.urgent_count}`);
-  if (row.count >= 3) parts.push("一天多次");
-  if (!parts.length && row.dominant_color) parts.push(row.dominant_color);
-  return parts.join(" · ");
-}
-
-
-function medicationDailyMeta(row) {
-  return [row.dominant_timing_relation, row.dominant_type, row.dominant_product]
-    .filter(Boolean)
-    .join(" · ");
 }

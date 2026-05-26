@@ -391,7 +391,7 @@
                 </article>
               </section>
 
-              <section class="report-grid" aria-label="排便趋势图">
+              <section class="report-grid" aria-label="排便报表图表">
                 <article class="chart-card wide">
                   <div class="chart-heading">
                     <h3>布里斯托控制图</h3>
@@ -400,28 +400,20 @@
                   <div class="control-chart" id="report-control-chart"></div>
                 </article>
 
-                <article class="chart-card wide">
-                  <div class="chart-heading">
-                    <h3>每日趋势</h3>
-                    <span>次数、平均等级、异常提示</span>
-                  </div>
-                  <div class="bar-chart" id="report-bowel-chart"></div>
-                </article>
-
                 <article class="chart-card">
                   <div class="chart-heading">
                     <h3>布里斯托分布</h3>
                     <span>1 到 7 级</span>
                   </div>
-                  <div class="bar-chart compact" id="report-bristol-chart"></div>
+                  <div class="vertical-bar-chart" id="report-bristol-chart"></div>
                 </article>
 
                 <article class="chart-card">
                   <div class="chart-heading">
-                    <h3>形态归类</h3>
-                    <span>偏硬 / 正常 / 偏稀</span>
+                    <h3>形态总结</h3>
+                    <span>安全区 / 低于 / 高于</span>
                   </div>
-                  <div class="bar-chart compact" id="report-quality-chart"></div>
+                  <div class="quality-summary" id="report-quality-summary"></div>
                 </article>
 
                 <article class="chart-card">
@@ -500,15 +492,7 @@
                 </article>
               </section>
 
-              <section class="report-grid" aria-label="用药趋势图">
-                <article class="chart-card wide">
-                  <div class="chart-heading">
-                    <h3>每日用药趋势</h3>
-                    <span>每天记录了多少种/次用药</span>
-                  </div>
-                  <div class="bar-chart" id="med-report-daily-chart"></div>
-                </article>
-
+              <section class="report-grid" aria-label="用药报表图表">
                 <article class="chart-card wide">
                   <div class="chart-heading">
                     <h3>药物使用排行</h3>
