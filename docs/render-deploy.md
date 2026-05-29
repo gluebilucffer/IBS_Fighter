@@ -62,6 +62,75 @@ curl -X POST \
   https://<render-url>/api/admin/backups/drive
 ```
 
+The logged-in app UI also has a `备份到 Drive` button in the header. It calls
+the same endpoint with the current Google-login session and CSRF token.
+
+The backup is uploaded as:
+
+```text
+ibs-fighter-backup-YYYYMMDDTHHMMSSZ.zip
+```
+
+Each zip contains:
+
+```text
+data/ibs_fighter.sqlite3
+uploads/
+manifest.json
+```
+
+The app creates the database copy through SQLite's backup API before zipping, so
+the uploaded database is a consistent snapshot instead of a raw copy of a live
+SQLite file.
+
+## Local backup import
+
+Use the local sync script to trigger Render, download the Drive backup when
+service-account credentials are available locally, and extract it to
+`data/render_backups/`:
+
+```bash
+python3 scripts/sync_render_backup.py
+```
+
+Required local environment:
+
+```text
+BACKUP_ADMIN_TOKEN=<Render BACKUP_ADMIN_TOKEN>
+GOOGLE_SERVICE_ACCOUNT_JSON=<same service account JSON/path/base64 JSON>
+GOOGLE_DRIVE_BACKUP_FOLDER_ID=<backup folder id>
+```
+
+If the service account JSON is only configured on Render, click `备份到 Drive`
+online or trigger the curl command above, let Google Drive Desktop sync the zip
+folder to this Mac, then import the latest synced zip:
+
+```bash
+python3 scripts/sync_render_backup.py \
+  --skip-trigger \
+  --drive-sync-dir "/path/to/Google Drive/IBS Fighter Backups"
+```
+
+You can also import a specific downloaded zip:
+
+```bash
+python3 scripts/sync_render_backup.py \
+  --backup-zip "/path/to/ibs-fighter-backup-YYYYMMDDTHHMMSSZ.zip"
+```
+
+After import, the script writes the latest online snapshot database path to:
+
+```text
+data/render_backups/latest_db_path.txt
+```
+
+Read it locally without overwriting the local development database:
+
+```bash
+sqlite3 "$(cat data/render_backups/latest_db_path.txt)" \
+  "SELECT COUNT(*) FROM bowel_movements;"
+```
+
 ## First data migration
 
 Before uploading to Render, make a local copy of:

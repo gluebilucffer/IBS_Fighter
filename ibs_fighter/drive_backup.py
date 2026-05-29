@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sqlite3
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -21,6 +22,10 @@ from .config import (
 
 
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+APP_PROPERTIES = {
+    "app": "ibs-fighter",
+    "kind": "sqlite-uploads-backup",
+}
 
 
 def backup_to_google_drive() -> dict:
@@ -35,8 +40,10 @@ def backup_to_google_drive() -> dict:
     backup_name = f"ibs-fighter-backup-{timestamp}.zip"
 
     with tempfile.TemporaryDirectory(prefix="ibs-fighter-backup-") as tmpdir:
+        snapshot_path = Path(tmpdir) / "ibs_fighter.sqlite3"
+        snapshot_database(snapshot_path)
         archive_path = Path(tmpdir) / backup_name
-        manifest = build_backup_archive(archive_path, timestamp)
+        manifest = build_backup_archive(archive_path, snapshot_path, timestamp)
         uploaded = upload_file_to_drive(archive_path, backup_name)
 
     return {
@@ -52,22 +59,35 @@ def backup_to_google_drive() -> dict:
     }
 
 
-def build_backup_archive(archive_path: Path, timestamp: str) -> dict:
-    db_sha256 = sha256_file(DB_PATH)
+def snapshot_database(snapshot_path: Path) -> None:
+    source_uri = f"file:{DB_PATH}?mode=ro"
+    source = sqlite3.connect(source_uri, uri=True)
+    try:
+        target = sqlite3.connect(snapshot_path)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+    finally:
+        source.close()
+
+
+def build_backup_archive(archive_path: Path, snapshot_path: Path, timestamp: str) -> dict:
+    db_sha256 = sha256_file(snapshot_path)
     uploaded_files = upload_manifest_entries()
     manifest = {
         "created_at": timestamp,
         "database": {
             "path": str(DB_PATH),
             "archive_name": "data/ibs_fighter.sqlite3",
-            "size_bytes": DB_PATH.stat().st_size,
+            "size_bytes": snapshot_path.stat().st_size,
             "sha256": db_sha256,
         },
         "uploads": uploaded_files,
     }
 
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.write(DB_PATH, "data/ibs_fighter.sqlite3")
+        archive.write(snapshot_path, "data/ibs_fighter.sqlite3")
         if UPLOADS_DIR.exists():
             for file_path in sorted(UPLOADS_DIR.rglob("*")):
                 if file_path.is_file():
@@ -106,6 +126,7 @@ def upload_file_to_drive(path: Path, name: str) -> dict:
     metadata = {
         "name": name,
         "parents": [GOOGLE_DRIVE_BACKUP_FOLDER_ID],
+        "appProperties": APP_PROPERTIES,
     }
     return (
         service.files()

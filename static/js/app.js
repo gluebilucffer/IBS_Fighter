@@ -144,6 +144,7 @@ document.addEventListener("click", async (event) => {
   const aiMealApplyButton = event.target.closest("[data-ai-meal-apply]");
   const reportModuleButton = event.target.closest("[data-report-module]");
   const reportRangeButton = event.target.closest("[data-report-days]");
+  const driveBackupButton = event.target.closest("[data-drive-backup]");
 
   if (tabButton) {
     activateTab(tabButton.dataset.tab);
@@ -189,6 +190,10 @@ document.addEventListener("click", async (event) => {
   if (reportRangeButton) {
     state.reportDays = Number(reportRangeButton.dataset.reportDays) || 7;
     loadReport(state.date || dateInput.value || today()).catch((error) => showToast(error.message));
+  }
+
+  if (driveBackupButton) {
+    triggerDriveBackup(driveBackupButton).catch((error) => showToast(error.message));
   }
 
   if (editButton) {
@@ -262,6 +267,24 @@ async function analyzeMeal(button) {
   } finally {
     button.disabled = false;
     button.textContent = "AI 识别饮食";
+  }
+}
+
+
+async function triggerDriveBackup(button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "备份中...";
+  try {
+    const payload = await requestJson("/api/admin/backups/drive", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    const backup = payload.backup || {};
+    showToast(`已备份到 Drive：${backup.file_name || "完成"}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
   }
 }
 

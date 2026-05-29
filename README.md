@@ -82,6 +82,30 @@ Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive
 登录态使用安全的 HttpOnly cookie。默认 `IBS_FIGHTER_SESSION_DAYS=360`，
 所以手机或电脑关闭浏览器后不需要频繁重新登录；主动点击页面上的“退出”仍会立即清除登录态。
 
+### 线上备份到本地分析
+
+Render 线上主库位于 persistent disk，例如：
+
+```text
+/var/data/data/ibs_fighter.sqlite3
+```
+
+页面右上角的 `备份到 Drive` 会把线上数据库和上传图片打包到 Google Drive。
+本地读取线上记录时，不覆盖 `data/ibs_fighter.sqlite3`，而是导入到
+`data/render_backups/`：
+
+```bash
+python3 scripts/sync_render_backup.py
+sqlite3 "$(cat data/render_backups/latest_db_path.txt)" \
+  "SELECT date(occurred_at), bristol_type, notes FROM bowel_movements ORDER BY occurred_at DESC LIMIT 5;"
+```
+
+如果备份 zip 已经通过 Google Drive Desktop 同步到本机，也可以直接导入：
+
+```bash
+python3 scripts/sync_render_backup.py --backup-zip "/path/to/ibs-fighter-backup-YYYYMMDDTHHMMSSZ.zip"
+```
+
 ## 时区
 
 记录表单仍然按你设备当前的当地时间填写。前端会自动提交浏览器系统时区，后端同时保存：
