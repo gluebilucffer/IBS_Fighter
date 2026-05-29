@@ -218,12 +218,6 @@ button.danger:hover {
   background: var(--primary-soft);
 }
 
-.header-backup {
-  min-height: 42px;
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
 .main-nav {
   position: sticky;
   top: 0;
@@ -1531,7 +1525,6 @@ textarea:focus {
   .privacy-badge,
   .user-pill,
   .timezone-pill,
-  .header-backup,
   .logout-link {
     min-height: 40px;
     padding-inline: 10px;

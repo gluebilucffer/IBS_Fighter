@@ -30,9 +30,9 @@ APP_PROPERTIES = {
 
 def backup_to_google_drive() -> dict:
     if not GOOGLE_DRIVE_BACKUP_FOLDER_ID:
-        raise RuntimeError("未配置 GOOGLE_DRIVE_BACKUP_FOLDER_ID")
+        raise RuntimeError("Drive 备份未配置：请在 Render 设置 GOOGLE_DRIVE_BACKUP_FOLDER_ID")
     if not GOOGLE_SERVICE_ACCOUNT_JSON:
-        raise RuntimeError("未配置 GOOGLE_SERVICE_ACCOUNT_JSON")
+        raise RuntimeError("Drive 备份未配置：请在 Render 设置 GOOGLE_SERVICE_ACCOUNT_JSON")
     if not DB_PATH.exists():
         raise RuntimeError(f"数据库文件不存在: {DB_PATH}")
 
