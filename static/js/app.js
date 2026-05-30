@@ -37,6 +37,7 @@ async function loadAuthState() {
   const payload = await requestJson("/api/auth/me");
   state.user = payload.user || null;
   state.aiMealEnabled = Boolean(payload.ai_meal_enabled);
+  state.driveBackup = payload.drive_backup || null;
   state.clientTimezone = browserTimeZone();
   setCsrfToken(payload.csrf_token || "");
   renderAuthState();
@@ -57,6 +58,44 @@ function renderAuthState() {
   document.querySelectorAll("[data-ai-meal-panel]").forEach((panel) => {
     panel.hidden = !state.aiMealEnabled;
   });
+
+  renderDriveBackupState();
+}
+
+
+function renderDriveBackupState() {
+  const backup = state.driveBackup || {};
+  const button = document.querySelector("[data-drive-backup]");
+  const status = document.querySelector("[data-drive-backup-status]");
+  if (!button) return;
+
+  button.disabled = false;
+  if (!backup.folder_configured) {
+    button.disabled = true;
+    button.textContent = "先配置 Drive 文件夹";
+    button.dataset.driveAction = "disabled";
+    if (status) status.textContent = "未配置 GOOGLE_DRIVE_BACKUP_FOLDER_ID";
+    return;
+  }
+
+  if (!backup.authorized) {
+    button.textContent = "连接 Google Drive 备份";
+    button.dataset.driveAction = "authorize";
+    if (status) {
+      status.textContent = backup.error || (backup.google_oauth_configured
+        ? "需要首次授权，之后可直接手动备份。"
+        : "未配置 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET");
+    }
+    button.disabled = !backup.google_oauth_configured;
+    return;
+  }
+
+  button.textContent = "备份到 Google Drive";
+  button.dataset.driveAction = "backup";
+  if (status) {
+    const account = backup.authorized_email ? `：${backup.authorized_email}` : "";
+    status.textContent = `已连接 ${backup.auth_method || "Drive"}${account}`;
+  }
 }
 
 
@@ -193,7 +232,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (driveBackupButton) {
-    triggerDriveBackup(driveBackupButton).catch((error) => showToast(error.message));
+    handleDriveBackupAction(driveBackupButton).catch((error) => showToast(error.message));
   }
 
   if (editButton) {
@@ -271,6 +310,16 @@ async function analyzeMeal(button) {
 }
 
 
+async function handleDriveBackupAction(button) {
+  if (button.dataset.driveAction === "authorize") {
+    const next = encodeURIComponent("/?drive=connected");
+    window.location.href = `/auth/google/drive/start?next=${next}`;
+    return;
+  }
+  await triggerDriveBackup(button);
+}
+
+
 async function triggerDriveBackup(button) {
   const originalText = button.textContent;
   button.disabled = true;
@@ -282,10 +331,19 @@ async function triggerDriveBackup(button) {
     });
     const backup = payload.backup || {};
     showToast(`已备份到 Drive：${backup.file_name || "完成"}`);
+    await refreshDriveBackupStatus();
   } finally {
     button.disabled = false;
     button.textContent = originalText;
+    renderDriveBackupState();
   }
+}
+
+
+async function refreshDriveBackupStatus() {
+  const payload = await requestJson("/api/admin/backups/drive/status");
+  state.driveBackup = payload.drive_backup || null;
+  renderDriveBackupState();
 }
 
 

@@ -202,8 +202,8 @@ def main() -> int:
 
     if backup_zip is None:
         raise RuntimeError(
-            "备份已触发但本地没有拿到 zip。请配置 GOOGLE_SERVICE_ACCOUNT_JSON，"
-            "或把 Google Drive 备份文件夹同步到本机后传入 --drive-sync-dir。"
+            "备份已触发但本地没有拿到 zip。请把 Google Drive 备份文件夹同步到本机后"
+            "传入 --drive-sync-dir，或直接传入 --backup-zip。"
         )
 
     result = extract_backup(backup_zip.expanduser(), args.output_dir.expanduser())

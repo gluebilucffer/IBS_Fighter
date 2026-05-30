@@ -12,7 +12,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .auth import (
     AuthError,
+    build_google_drive_auth_url,
     build_google_auth_url,
+    complete_google_drive_authorization,
     complete_google_login,
     current_user,
     ensure_csrf_token,
@@ -35,7 +37,7 @@ from .config import (
 )
 from .crud import build_day_payload, delete_record, fetch_records, insert_record, update_record
 from .db import get_connection, init_database
-from .drive_backup import backup_to_google_drive
+from .drive_backup import backup_to_google_drive, drive_backup_status, store_drive_oauth_token
 from .models import TABLES
 from .openai_meal_analyzer import analyze_meal
 from .reports import build_report
@@ -122,14 +124,30 @@ def register_routes(app: Flask) -> None:
     @app.get("/auth/google/callback")
     def google_auth_callback() -> Response:
         try:
-            complete_google_login(
-                code=request.args.get("code", ""),
-                state=request.args.get("state", ""),
-            )
+            if session.get("oauth_flow") == "drive_backup":
+                result = complete_google_drive_authorization(
+                    code=request.args.get("code", ""),
+                    state=request.args.get("state", ""),
+                )
+                store_drive_oauth_token(result["user"]["email"], result["token_response"])
+            else:
+                complete_google_login(
+                    code=request.args.get("code", ""),
+                    state=request.args.get("state", ""),
+                )
         except AuthError as exc:
-            return Response(error_html("登录失败", str(exc)), status=403)
+            return Response(error_html("Google 授权失败", str(exc)), status=403)
+        except RuntimeError as exc:
+            return Response(error_html("Drive 授权保存失败", str(exc)), status=500)
         next_path = safe_next_path(session.pop("post_login_next", "/"))
         return redirect(next_path)
+
+    @app.get("/auth/google/drive/start")
+    def google_drive_auth_start() -> Response:
+        try:
+            return redirect(build_google_drive_auth_url(request.args.get("next") or "/?drive=connected"))
+        except AuthError as exc:
+            return Response(error_html("Drive 授权失败", str(exc)), status=403)
 
     @app.get("/logout")
     def logout() -> Response:
@@ -149,6 +167,7 @@ def register_routes(app: Flask) -> None:
                 "user": user,
                 "csrf_token": ensure_csrf_token(),
                 "ai_meal_enabled": bool(OPENAI_API_KEY),
+                "drive_backup": drive_backup_status(),
             }
         )
 
@@ -189,6 +208,13 @@ def register_routes(app: Flask) -> None:
     def api_drive_backup() -> Response:
         try:
             return jsonify(backup_to_google_drive())
+        except RuntimeError as exc:
+            return json_error(str(exc), HTTPStatus.BAD_REQUEST)
+
+    @app.get("/api/admin/backups/drive/status")
+    def api_drive_backup_status() -> Response:
+        try:
+            return jsonify({"ok": True, "drive_backup": drive_backup_status()})
         except RuntimeError as exc:
             return json_error(str(exc), HTTPStatus.BAD_REQUEST)
 

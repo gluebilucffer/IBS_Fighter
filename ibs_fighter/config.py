@@ -61,6 +61,9 @@ GOOGLE_ALLOWED_EMAILS = {
 }
 GOOGLE_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
 GOOGLE_DRIVE_BACKUP_FOLDER_ID = os.environ.get("GOOGLE_DRIVE_BACKUP_FOLDER_ID", "")
+GOOGLE_DRIVE_OAUTH_TOKEN_PATH = Path(
+    os.environ.get("GOOGLE_DRIVE_OAUTH_TOKEN_PATH", DATA_DIR / "google_drive_oauth_token.json")
+).expanduser()
 BACKUP_ADMIN_TOKEN = os.environ.get("BACKUP_ADMIN_TOKEN", "")
 DEFAULT_TIMEZONE = os.environ.get("IBS_FIGHTER_DEFAULT_TIMEZONE", "Pacific/Guadalcanal")
 LEGACY_TIMEZONE = os.environ.get("IBS_FIGHTER_LEGACY_TIMEZONE", "Pacific/Port_Moresby")

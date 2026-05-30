@@ -15,6 +15,10 @@ from .config import GOOGLE_ALLOWED_EMAILS, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRE
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_OPENID_SCOPE = "openid email profile"
+GOOGLE_DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+OAUTH_FLOW_LOGIN = "login"
+OAUTH_FLOW_DRIVE_BACKUP = "drive_backup"
 
 
 class AuthError(RuntimeError):
@@ -53,29 +57,96 @@ def require_login(view):
 
 
 def build_google_auth_url(next_path: str = "/") -> str:
+    return build_google_oauth_url(
+        next_path=next_path,
+        flow=OAUTH_FLOW_LOGIN,
+        scope=GOOGLE_OPENID_SCOPE,
+        prompt="select_account",
+    )
+
+
+def build_google_drive_auth_url(next_path: str = "/") -> str:
+    user = current_user()
+    if not user:
+        raise AuthError("Drive backup authorization requires Google login")
+
+    return build_google_oauth_url(
+        next_path=next_path,
+        flow=OAUTH_FLOW_DRIVE_BACKUP,
+        scope=f"{GOOGLE_OPENID_SCOPE} {GOOGLE_DRIVE_FILE_SCOPE}",
+        prompt="consent select_account",
+        login_hint=str(user.get("email") or ""),
+    )
+
+
+def build_google_oauth_url(
+    *,
+    next_path: str,
+    flow: str,
+    scope: str,
+    prompt: str,
+    login_hint: str = "",
+) -> str:
     if not google_oauth_configured():
         raise AuthError("Google OAuth is not configured")
 
     oauth_state = secrets.token_urlsafe(32)
     session["oauth_state"] = oauth_state
+    session["oauth_flow"] = flow
     session["post_login_next"] = safe_next_path(next_path)
 
     params = {
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": url_for("google_auth_callback", _external=True),
         "response_type": "code",
-        "scope": "openid email profile",
+        "scope": scope,
         "state": oauth_state,
-        "prompt": "select_account",
+        "prompt": prompt,
         "access_type": "offline",
+        "include_granted_scopes": "true",
     }
+    if login_hint:
+        params["login_hint"] = login_hint
     return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
 
 def complete_google_login(code: str, state: str) -> dict:
+    user, _token_response = complete_google_oauth(
+        code=code,
+        state=state,
+        expected_flow=OAUTH_FLOW_LOGIN,
+    )
+    session.permanent = True
+    session["user"] = user
+    ensure_csrf_token()
+    return user
+
+
+def complete_google_drive_authorization(code: str, state: str) -> dict:
+    existing_user = current_user()
+    if not existing_user:
+        raise AuthError("需要先登录 IBS Fighter，才能授权 Drive 备份")
+
+    user, token_response = complete_google_oauth(
+        code=code,
+        state=state,
+        expected_flow=OAUTH_FLOW_DRIVE_BACKUP,
+    )
+    if user["email"] != str(existing_user.get("email") or "").lower():
+        raise AuthError("Drive 授权账号必须和当前登录账号一致")
+    if not token_response.get("refresh_token"):
+        raise AuthError("Google 没有返回 refresh token，请移除旧授权后重新连接 Drive 备份")
+
+    return {"user": user, "token_response": token_response}
+
+
+def complete_google_oauth(code: str, state: str, expected_flow: str) -> tuple[dict, dict]:
     expected_state = session.pop("oauth_state", None)
+    flow = session.pop("oauth_flow", OAUTH_FLOW_LOGIN)
     if not expected_state or not hmac.compare_digest(str(expected_state), str(state or "")):
         raise AuthError("Invalid OAuth state")
+    if flow != expected_flow:
+        raise AuthError("Invalid OAuth flow")
 
     token_response = requests.post(
         GOOGLE_TOKEN_URL,
@@ -91,7 +162,8 @@ def complete_google_login(code: str, state: str) -> dict:
     if not token_response.ok:
         raise AuthError("Google token exchange failed")
 
-    id_token_value = token_response.json().get("id_token")
+    token_payload = token_response.json()
+    id_token_value = token_payload.get("id_token")
     if not id_token_value:
         raise AuthError("Google did not return an ID token")
 
@@ -116,10 +188,7 @@ def complete_google_login(code: str, state: str) -> dict:
         "name": claims.get("name") or email,
         "picture": claims.get("picture") or "",
     }
-    session.permanent = True
-    session["user"] = user
-    ensure_csrf_token()
-    return user
+    return user, token_payload
 
 
 def safe_next_path(value: str | None) -> str:

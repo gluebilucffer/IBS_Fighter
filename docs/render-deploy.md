@@ -21,13 +21,19 @@
 
 Optional Google Drive backup environment:
 
-- `GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON or base64 JSON>`
 - `GOOGLE_DRIVE_BACKUP_FOLDER_ID=<shared Drive folder id>`
 
-If your Google Cloud organization blocks service account key creation with
-`iam.disableServiceAccountKeyCreation`, leave these unset for the first deploy.
-The app still works with Render persistent disk storage; only the manual Drive
-backup endpoint remains disabled until a keyless backup method is configured.
+The preferred backup flow is keyless OAuth. After deploying with the folder id,
+open the app settings page and click `连接 Google Drive 备份`. The app stores the
+Drive refresh token on the Render persistent disk at
+`/var/data/data/google_drive_oauth_token.json` by default.
+
+Optional service-account fallback:
+
+- `GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON or base64 JSON>`
+
+Only use the fallback if your Google Cloud project allows service account keys.
+The OAuth flow avoids `iam.disableServiceAccountKeyCreation` entirely.
 
 ## Google OAuth
 
@@ -38,6 +44,17 @@ Create a Google OAuth Web Client and add these redirect URIs:
 
 Only emails listed in `GOOGLE_ALLOWED_EMAILS` can enter the app.
 
+The Drive backup authorization reuses the same callback URI. No extra redirect
+URI is needed beyond `/auth/google/callback`.
+
+On the OAuth consent screen, add the signed-in account as a test user if the app
+is still in Testing mode. The backup flow requests:
+
+- `openid`
+- `email`
+- `profile`
+- `https://www.googleapis.com/auth/drive.file`
+
 ## Login cookie lifetime
 
 The app uses a signed, HttpOnly, Secure Flask session cookie. After Google login,
@@ -47,8 +64,14 @@ link still clears the session immediately by design.
 
 ## Google Drive backup
 
-Create a Google service account, then share the target Google Drive backup folder
-with the service account email. The app uploads a zip containing:
+Enable the Google Drive API for the Google Cloud project that owns your OAuth
+client. Then set `GOOGLE_DRIVE_BACKUP_FOLDER_ID` on Render and redeploy.
+
+Open the app settings page and click `连接 Google Drive 备份`. The OAuth consent
+screen requests Drive file access for the signed-in Google account. After that,
+the same button changes to `备份到 Google Drive`.
+
+The app uploads a zip containing:
 
 - `data/ibs_fighter.sqlite3`
 - `uploads/`
@@ -62,8 +85,8 @@ curl -X POST \
   https://<render-url>/api/admin/backups/drive
 ```
 
-The logged-in app UI also has a `备份到 Drive` button in the header. It calls
-the same endpoint with the current Google-login session and CSRF token.
+The logged-in app UI has a `备份到 Google Drive` button in `设置`. It calls the
+same endpoint with the current Google-login session and CSRF token.
 
 The backup is uploaded as:
 
@@ -85,9 +108,8 @@ SQLite file.
 
 ## Local backup import
 
-Use the local sync script to trigger Render, download the Drive backup when
-service-account credentials are available locally, and extract it to
-`data/render_backups/`:
+Use the local sync script to trigger Render and extract the downloaded or synced
+Drive backup to `data/render_backups/`:
 
 ```bash
 python3 scripts/sync_render_backup.py
@@ -97,13 +119,13 @@ Required local environment:
 
 ```text
 BACKUP_ADMIN_TOKEN=<Render BACKUP_ADMIN_TOKEN>
-GOOGLE_SERVICE_ACCOUNT_JSON=<same service account JSON/path/base64 JSON>
 GOOGLE_DRIVE_BACKUP_FOLDER_ID=<backup folder id>
 ```
 
-If the service account JSON is only configured on Render, click `备份到 Drive`
-online or trigger the curl command above, let Google Drive Desktop sync the zip
-folder to this Mac, then import the latest synced zip:
+When the Render app uses OAuth backup, the Drive refresh token lives on Render's
+persistent disk. For local analysis, click `备份到 Google Drive` online or trigger
+the curl command above, let Google Drive Desktop sync the zip folder to this Mac,
+then import the latest synced zip:
 
 ```bash
 python3 scripts/sync_render_backup.py \

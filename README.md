@@ -77,7 +77,7 @@ IBS_FIGHTER_DATA_DIR=/var/data/data
 IBS_FIGHTER_UPLOADS_DIR=/var/data/uploads
 ```
 
-Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive 只作为备份副本，不作为 SQLite 主库。详细步骤见 `docs/render-deploy.md`。
+Google 登录只允许 `GOOGLE_ALLOWED_EMAILS` 里的账号进入。Google Drive 只作为备份副本，不作为 SQLite 主库；备份授权使用 Google OAuth，不需要 Service Account JSON key。详细步骤见 `docs/render-deploy.md`。
 
 登录态使用安全的 HttpOnly cookie。默认 `IBS_FIGHTER_SESSION_DAYS=360`，
 所以手机或电脑关闭浏览器后不需要频繁重新登录；主动点击页面上的“退出”仍会立即清除登录态。
@@ -90,7 +90,8 @@ Render 线上主库位于 persistent disk，例如：
 /var/data/data/ibs_fighter.sqlite3
 ```
 
-页面右上角的 `备份到 Drive` 会把线上数据库和上传图片打包到 Google Drive。
+设置页先点击 `连接 Google Drive 备份` 完成授权，然后 `备份到 Google Drive`
+会把线上数据库和上传图片打包到 Google Drive。
 本地读取线上记录时，不覆盖 `data/ibs_fighter.sqlite3`，而是导入到
 `data/render_backups/`：
 

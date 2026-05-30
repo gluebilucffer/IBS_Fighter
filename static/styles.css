@@ -74,6 +74,11 @@ button:hover {
   background: var(--primary-dark);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -1442,6 +1447,11 @@ textarea:focus {
   color: var(--accent);
   font-size: 12px;
   font-weight: 780;
+}
+
+.setting-card small {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 #toast {

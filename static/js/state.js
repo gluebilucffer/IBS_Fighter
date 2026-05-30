@@ -10,5 +10,6 @@ export const state = {
   report: null,
   user: null,
   aiMealEnabled: false,
+  driveBackup: null,
   clientTimezone: "UTC",
 };
