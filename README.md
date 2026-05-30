@@ -60,6 +60,14 @@ data/ibs_fighter.sqlite3
 uploads/
 ```
 
+上传的饮食照片会在服务端统一转成 JPEG，并压缩到约 500KB 以内，避免 iPhone 原图长期占满 Render 磁盘和 Google Drive 备份空间。
+
+已有历史照片可以就地重压缩，文件名保持不变：
+
+```bash
+python3 scripts/recompress_uploads.py
+```
+
 ## 公网部署
 
 当前部署目标是 Render Web Service + persistent disk：

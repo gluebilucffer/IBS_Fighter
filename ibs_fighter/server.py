@@ -41,6 +41,13 @@ from .drive_backup import backup_to_google_drive, drive_backup_status, store_dri
 from .models import TABLES
 from .openai_meal_analyzer import analyze_meal
 from .reports import build_report
+from .uploads import recompress_uploads_directory
+
+
+ADMIN_TOKEN_PATHS = {
+    "/api/admin/backups/drive",
+    "/api/admin/uploads/recompress",
+}
 
 
 def create_app() -> Flask:
@@ -71,7 +78,7 @@ def register_hooks(app: Flask) -> None:
         if is_public_endpoint():
             return None
 
-        if request.path == "/api/admin/backups/drive" and backup_token_is_valid():
+        if admin_token_is_valid_for_path():
             return None
 
         user = current_user()
@@ -211,6 +218,15 @@ def register_routes(app: Flask) -> None:
         except RuntimeError as exc:
             return json_error(str(exc), HTTPStatus.BAD_REQUEST)
 
+    @app.post("/api/admin/uploads/recompress")
+    def api_recompress_uploads() -> Response:
+        try:
+            payload = read_json_body()
+            dry_run = bool(payload.get("dry_run")) or request.args.get("dry_run") in {"1", "true", "True"}
+            return jsonify(recompress_uploads_directory(dry_run=dry_run))
+        except RuntimeError as exc:
+            return json_error(str(exc), HTTPStatus.BAD_REQUEST)
+
     @app.get("/api/admin/backups/drive/status")
     def api_drive_backup_status() -> Response:
         try:
@@ -272,11 +288,15 @@ def is_public_endpoint() -> bool:
 
 
 def csrf_is_valid() -> bool:
-    if request.path == "/api/admin/backups/drive" and backup_token_is_valid():
+    if admin_token_is_valid_for_path():
         return True
     expected = session.get("csrf_token")
     provided = request.headers.get("X-CSRF-Token", "")
     return bool(expected and provided and hmac.compare_digest(str(expected), provided))
+
+
+def admin_token_is_valid_for_path() -> bool:
+    return request.path in ADMIN_TOKEN_PATHS and backup_token_is_valid()
 
 
 def backup_token_is_valid() -> bool:

@@ -77,6 +77,26 @@ The app uploads a zip containing:
 - `uploads/`
 - `manifest.json` with file sizes and SHA-256 checksums
 
+Meal photos are converted to JPEG and compressed to roughly 500KB on upload, so
+future backups grow much more slowly than raw iPhone photos.
+
+Existing uploaded JPEGs can be recompressed in place. The command keeps file
+names unchanged and skips files already below the target size:
+
+```bash
+python3 scripts/recompress_uploads.py
+```
+
+On Render, the same maintenance task can be triggered with the admin token:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $BACKUP_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run": false}' \
+  https://<render-url>/api/admin/uploads/recompress
+```
+
 Manual backup trigger:
 
 ```bash
