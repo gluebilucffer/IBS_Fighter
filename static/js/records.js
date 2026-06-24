@@ -226,18 +226,6 @@ function recordDetails(table, record) {
 
   if (table === "body_weights") {
     add("体重", `${formatNumber(record.weight_kg)} kg`);
-    add(
-      "体脂",
-      record.body_fat_percent !== null && record.body_fat_percent !== undefined
-        ? `${formatNumber(record.body_fat_percent)}%`
-        : null,
-    );
-    add(
-      "腰围",
-      record.waist_cm !== null && record.waist_cm !== undefined
-        ? `${formatNumber(record.waist_cm)} cm`
-        : null,
-    );
     add("条件", record.measurement_context);
     add("时区", record.measured_timezone);
     add("UTC", record.measured_at_utc);

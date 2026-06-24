@@ -52,8 +52,6 @@ export const tableFields = {
     "id",
     "measured_at",
     "weight_kg",
-    "body_fat_percent",
-    "waist_cm",
     "measurement_context",
     "notes",
   ],
@@ -66,8 +64,6 @@ export const numericFields = new Set([
   "quantity_value",
   "duration_minutes",
   "weight_kg",
-  "body_fat_percent",
-  "waist_cm",
 ]);
 
 export const bristolLabels = {

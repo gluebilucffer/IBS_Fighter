@@ -210,7 +210,7 @@ def fetch_latest_body_weight() -> dict | None:
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT id, measured_at, weight_kg, body_fat_percent, waist_cm, measurement_context
+            SELECT id, measured_at, weight_kg, measurement_context
             FROM body_weights
             ORDER BY measured_at DESC, id DESC
             LIMIT 1

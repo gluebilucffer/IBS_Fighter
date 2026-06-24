@@ -216,8 +216,6 @@ def fetch_weight_rows(
             id,
             measured_at,
             weight_kg,
-            body_fat_percent,
-            waist_cm,
             measurement_context,
             notes,
             created_at,
@@ -395,8 +393,6 @@ def build_weight_report_from_rows(
             "count": 0,
             "measured_at": None,
             "weight_kg": None,
-            "body_fat_percent": None,
-            "waist_cm": None,
             "measurement_context": None,
             "notes": None,
         }
@@ -412,8 +408,6 @@ def build_weight_report_from_rows(
         day_row["count"] += 1
         day_row["measured_at"] = item.get("measured_at")
         day_row["weight_kg"] = rounded_float(item.get("weight_kg"))
-        day_row["body_fat_percent"] = rounded_float(item.get("body_fat_percent"))
-        day_row["waist_cm"] = rounded_float(item.get("waist_cm"))
         day_row["measurement_context"] = item.get("measurement_context")
         day_row["notes"] = item.get("notes")
 
@@ -428,8 +422,6 @@ def build_weight_report_from_rows(
             "date": row["date"],
             "measured_at": row["measured_at"],
             "weight_kg": row["weight_kg"],
-            "body_fat_percent": row["body_fat_percent"],
-            "waist_cm": row["waist_cm"],
             "measurement_context": row["measurement_context"],
             "record_count": row["count"],
             "change_from_previous_kg": None,

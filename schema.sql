@@ -74,8 +74,6 @@ CREATE TABLE IF NOT EXISTS body_weights (
     measured_timezone TEXT,
     measured_at_utc TEXT,
     weight_kg REAL NOT NULL CHECK (weight_kg BETWEEN 20 AND 300),
-    body_fat_percent REAL CHECK (body_fat_percent IS NULL OR body_fat_percent BETWEEN 0 AND 80),
-    waist_cm REAL CHECK (waist_cm IS NULL OR waist_cm BETWEEN 30 AND 250),
     measurement_context TEXT,
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),

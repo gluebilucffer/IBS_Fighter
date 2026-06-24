@@ -94,8 +94,6 @@ TABLES = {
             "measured_timezone": "text",
             "measured_at_utc": "text",
             "weight_kg": "float",
-            "body_fat_percent": "float",
-            "waist_cm": "float",
             "measurement_context": "text",
             "notes": "text",
         },
