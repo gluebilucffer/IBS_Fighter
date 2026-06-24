@@ -1347,7 +1347,8 @@ textarea:focus {
 .rank-list,
 .attention-list,
 .insight-list,
-.date-chip-list {
+.date-chip-list,
+.anomaly-card-list {
   display: grid;
   gap: 8px;
 }
@@ -1404,6 +1405,165 @@ textarea:focus {
   display: block;
   color: #35423e;
   line-height: 1.55;
+}
+
+.anomaly-card-list {
+  gap: 12px;
+}
+
+.anomaly-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdfa;
+}
+
+.anomaly-card-header,
+.anomaly-card-meta,
+.anomaly-context-summary,
+.anomaly-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.anomaly-card-header {
+  justify-content: space-between;
+}
+
+.anomaly-card-header span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.anomaly-card-header strong {
+  color: #8f372b;
+  font-size: 18px;
+}
+
+.anomaly-card-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.anomaly-card-reasons b,
+.anomaly-card-meta span,
+.anomaly-context-summary span,
+.anomaly-prompts span,
+.mini-more {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: #8f372b;
+  font-size: 12px;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.anomaly-card-meta span,
+.anomaly-context-summary span,
+.mini-more {
+  background: #f7f4ef;
+  color: var(--muted);
+}
+
+.anomaly-prompts span {
+  border-color: #bfd8ca;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.anomaly-card-notes {
+  margin: 0;
+  color: #35423e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.anomaly-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.anomaly-context-grid section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.anomaly-context-grid h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.anomaly-mini-list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.anomaly-mini-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbf8f2;
+}
+
+.anomaly-mini-item:has(img) {
+  grid-template-columns: 54px minmax(0, 1fr);
+}
+
+.anomaly-mini-item img {
+  width: 54px;
+  height: 54px;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.anomaly-mini-item span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.anomaly-mini-item b,
+.anomaly-mini-item small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.anomaly-mini-item b {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.anomaly-mini-item small,
+.mini-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mini-empty {
+  padding: 9px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fbf8f2;
 }
 
 .date-chip-list {
@@ -1724,6 +1884,15 @@ textarea:focus {
   .rank-item,
   .attention-item {
     align-items: start;
+    flex-direction: column;
+  }
+
+  .anomaly-context-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .anomaly-card-header {
+    align-items: flex-start;
     flex-direction: column;
   }
 

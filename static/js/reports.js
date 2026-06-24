@@ -1,6 +1,6 @@
 import { requestJson } from "./api.js";
 import { state } from "./state.js";
-import { escapeHtml, formatNumber, shortDate, shortText, today } from "./utils.js";
+import { escapeHtml, formatDateTime, formatNumber, shortDate, shortText, today } from "./utils.js";
 
 
 export async function loadReport(endDate = state.date || today()) {
@@ -93,6 +93,7 @@ function renderBowelReport(report) {
 
   renderNoRecordDays(report.no_record_dates || [], report.range.days);
   renderAttentionDays(report.attention_days || []);
+  renderAnomalyReviewCards(report.anomaly_review_cards || []);
   renderInsights(report.insights || []);
 }
 
@@ -544,6 +545,103 @@ function renderAttentionDays(rows) {
       `;
     })
     .join("");
+}
+
+
+function renderAnomalyReviewCards(cards) {
+  const container = document.querySelector("#report-anomaly-cards");
+  if (!container) return;
+  if (!cards.length) {
+    container.innerHTML = '<div class="empty">这个周期没有触发异常复盘卡</div>';
+    return;
+  }
+
+  container.innerHTML = cards
+    .slice(0, 8)
+    .map((card) => {
+      const context = card.context || {};
+      const meals = context.meals || [];
+      const medications = context.medications || [];
+      const summary = context.summary || [];
+      const prompts = card.monitoring_prompts || [];
+      return `
+        <article class="anomaly-card">
+          <div class="anomaly-card-header">
+            <span>${escapeHtml(formatDateTime(card.occurred_at))}</span>
+            <strong>Bristol ${escapeHtml(String(card.bristol_type ?? "-"))}</strong>
+          </div>
+          <div class="anomaly-card-reasons">
+            ${(card.reasons || []).map((reason) => `<b>${escapeHtml(reason)}</b>`).join("")}
+          </div>
+          <div class="anomaly-card-meta">
+            <span>${escapeHtml(card.location || "未记录地点")}</span>
+            <span>${escapeHtml(card.color || "未记录颜色")}</span>
+            ${card.urgency != null ? `<span>急迫 ${escapeHtml(String(card.urgency))}</span>` : ""}
+          </div>
+          ${card.notes ? `<p class="anomaly-card-notes">${escapeHtml(card.notes)}</p>` : ""}
+          <div class="anomaly-context-summary">
+            ${summary.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+          </div>
+          <div class="anomaly-context-grid">
+            <section>
+              <h4>前 ${escapeHtml(String(card.context_window_hours || 48))} 小时饮食</h4>
+              ${renderAnomalyMeals(meals)}
+            </section>
+            <section>
+              <h4>前 ${escapeHtml(String(card.context_window_hours || 48))} 小时用药</h4>
+              ${renderAnomalyMedications(medications)}
+            </section>
+          </div>
+          <div class="anomaly-prompts">
+            ${prompts.map((prompt) => `<span>${escapeHtml(prompt)}</span>`).join("")}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+
+function renderAnomalyMeals(rows) {
+  if (!rows.length) {
+    return '<div class="mini-empty">没有饮食记录</div>';
+  }
+  return `
+    <div class="anomaly-mini-list">
+      ${rows.slice(0, 4).map((row) => `
+        <div class="anomaly-mini-item">
+          ${row.photo_path ? `<img src="${escapeHtml(row.photo_path)}" alt="饮食照片" />` : ""}
+          <span>
+            <b>${escapeHtml([formatDateTime(row.eaten_at), row.meal_type].filter(Boolean).join(" · "))}</b>
+            <small>${escapeHtml(shortText(row.foods || "未记录食物", 42))}</small>
+            <small>${escapeHtml(row.location || "未记录地点")}</small>
+          </span>
+        </div>
+      `).join("")}
+      ${rows.length > 4 ? `<div class="mini-more">+${rows.length - 4} 条饮食</div>` : ""}
+    </div>
+  `;
+}
+
+
+function renderAnomalyMedications(rows) {
+  if (!rows.length) {
+    return '<div class="mini-empty">没有用药记录</div>';
+  }
+  return `
+    <div class="anomaly-mini-list">
+      ${rows.slice(0, 5).map((row) => `
+        <div class="anomaly-mini-item">
+          <span>
+            <b>${escapeHtml([formatDateTime(row.taken_at), row.timing_relation].filter(Boolean).join(" · "))}</b>
+            <small>${escapeHtml([row.product_name, row.quantity_text].filter(Boolean).join(" · "))}</small>
+            <small>${escapeHtml(row.product_type || "未分类")}</small>
+          </span>
+        </div>
+      `).join("")}
+      ${rows.length > 5 ? `<div class="mini-more">+${rows.length - 5} 条用药</div>` : ""}
+    </div>
+  `;
 }
 
 
