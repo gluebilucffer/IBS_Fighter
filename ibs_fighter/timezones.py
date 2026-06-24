@@ -11,6 +11,7 @@ TIME_FIELDS = {
     "meals": ("eaten_at", "eaten_timezone", "eaten_at_utc"),
     "medications": ("taken_at", "taken_timezone", "taken_at_utc"),
     "exercises": ("started_at", "started_timezone", "started_at_utc"),
+    "body_weights": ("measured_at", "measured_timezone", "measured_at_utc"),
 }
 
 

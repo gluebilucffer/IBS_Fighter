@@ -68,11 +68,26 @@ CREATE TABLE IF NOT EXISTS exercises (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS body_weights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    measured_at TEXT NOT NULL,
+    measured_timezone TEXT,
+    measured_at_utc TEXT,
+    weight_kg REAL NOT NULL CHECK (weight_kg BETWEEN 20 AND 300),
+    body_fat_percent REAL CHECK (body_fat_percent IS NULL OR body_fat_percent BETWEEN 0 AND 80),
+    waist_cm REAL CHECK (waist_cm IS NULL OR waist_cm BETWEEN 30 AND 250),
+    measurement_context TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_bowel_movements_occurred_at ON bowel_movements (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_meals_eaten_at ON meals (eaten_at);
 CREATE INDEX IF NOT EXISTS idx_medication_products_name ON medication_products (product_name);
 CREATE INDEX IF NOT EXISTS idx_medications_taken_at ON medications (taken_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_started_at ON exercises (started_at);
+CREATE INDEX IF NOT EXISTS idx_body_weights_measured_at ON body_weights (measured_at);
 
 CREATE TRIGGER IF NOT EXISTS trg_bowel_movements_updated_at
 AFTER UPDATE ON bowel_movements
@@ -107,4 +122,11 @@ AFTER UPDATE ON exercises
 FOR EACH ROW
 BEGIN
     UPDATE exercises SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_body_weights_updated_at
+AFTER UPDATE ON body_weights
+FOR EACH ROW
+BEGIN
+    UPDATE body_weights SET updated_at = datetime('now') WHERE id = OLD.id;
 END;

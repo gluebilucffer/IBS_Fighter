@@ -43,9 +43,9 @@
               <p>优先记录排便、饮食和用药；报表负责之后复盘，不打断当天记录。</p>
             </div>
             <div class="hero-metric">
-              <span>目标体重</span>
-              <strong>60kg</strong>
-              <small>先稳定排便和饮食，再接体重记录</small>
+              <span>最近体重</span>
+              <strong id="hero-current-weight">-</strong>
+              <small id="hero-weight-note">先建立体重基线</small>
             </div>
           </article>
 
@@ -65,6 +65,10 @@
             <button type="button" data-quick-action="exercises">
               <span>记录运动</span>
               <small>活动 / 分钟 / 强度</small>
+            </button>
+            <button type="button" data-quick-action="body_weights">
+              <span>记录体重</span>
+              <small>体重 / 腰围 / 测量条件</small>
             </button>
           </section>
 
@@ -100,6 +104,11 @@
               <strong id="summary-exercise">0</strong>
               <small>分钟</small>
             </article>
+            <article class="summary-card">
+              <span>体重</span>
+              <strong id="summary-weight">-</strong>
+              <small>选中日期最近一次</small>
+            </article>
           </section>
         </section>
 
@@ -117,6 +126,7 @@
             <button class="record-tab" type="button" data-record-tab="meals">饮食</button>
             <button class="record-tab" type="button" data-record-tab="medications">用药</button>
             <button class="record-tab" type="button" data-record-tab="exercises">运动</button>
+            <button class="record-tab" type="button" data-record-tab="body_weights">体重</button>
           </nav>
 
           <section class="record-panels">
@@ -334,6 +344,55 @@
                 <div class="record-list" data-list="exercises"></div>
               </article>
             </section>
+
+            <section class="record-panel" data-record-panel="body_weights">
+              <article class="panel record-editor" data-table="body_weights">
+                <div class="panel-heading">
+                  <h2>体重</h2>
+                  <button class="ghost" type="button" data-reset="body_weights">清空</button>
+                </div>
+                <form data-form="body_weights">
+                  <input name="id" type="hidden" />
+                  <label>
+                    时间
+                    <input name="measured_at" type="datetime-local" required />
+                  </label>
+                  <div class="two-col">
+                    <label>
+                      体重 kg
+                      <input name="weight_kg" type="number" min="20" max="300" step="0.1" inputmode="decimal" required />
+                    </label>
+                    <label>
+                      测量条件
+                      <select name="measurement_context">
+                        <option>起床后</option>
+                        <option>早餐前</option>
+                        <option>饭后</option>
+                        <option>运动后</option>
+                        <option>睡前</option>
+                        <option>其他</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="two-col">
+                    <label>
+                      体脂 %
+                      <input name="body_fat_percent" type="number" min="0" max="80" step="0.1" inputmode="decimal" />
+                    </label>
+                    <label>
+                      腰围 cm
+                      <input name="waist_cm" type="number" min="30" max="250" step="0.1" inputmode="decimal" />
+                    </label>
+                  </div>
+                  <label>
+                    备注
+                    <textarea name="notes" rows="2" placeholder="例如：腹泻后、食欲差、旅行、换药"></textarea>
+                  </label>
+                  <button type="submit">保存体重</button>
+                </form>
+                <div class="record-list" data-list="body_weights"></div>
+              </article>
+            </section>
           </section>
         </section>
 
@@ -349,6 +408,7 @@
                 <div class="segmented-control" aria-label="报表分类">
                   <button class="active" type="button" data-report-module="bowel">排便</button>
                   <button type="button" data-report-module="medications">用药</button>
+                  <button type="button" data-report-module="weight">体重</button>
                 </div>
                 <div class="segmented-control" aria-label="报表周期">
                   <button class="active" type="button" data-report-days="7">7 天</button>
@@ -539,6 +599,75 @@
                     <span>只基于用药记录生成</span>
                   </div>
                   <div class="insight-list" id="med-report-insights"></div>
+                </article>
+              </section>
+            </section>
+
+            <section class="report-module" data-report-module-panel="weight">
+              <section class="report-summary-grid" aria-label="体重周期概览">
+                <article class="summary-card">
+                  <span>最新体重</span>
+                  <strong id="weight-report-latest">-</strong>
+                  <small id="weight-report-latest-date">周期内最近一次</small>
+                </article>
+                <article class="summary-card">
+                  <span>周期变化</span>
+                  <strong id="weight-report-change">-</strong>
+                  <small>首末记录对比</small>
+                </article>
+                <article class="summary-card">
+                  <span>记录覆盖</span>
+                  <strong id="weight-report-coverage">0%</strong>
+                  <small id="weight-report-record-days">0 天有记录</small>
+                </article>
+                <article class="summary-card">
+                  <span>平均体重</span>
+                  <strong id="weight-report-average">-</strong>
+                  <small>周期内有记录日期</small>
+                </article>
+                <article class="summary-card">
+                  <span>最低</span>
+                  <strong id="weight-report-min">-</strong>
+                  <small id="weight-report-min-date">-</small>
+                </article>
+                <article class="summary-card">
+                  <span>最高</span>
+                  <strong id="weight-report-max">-</strong>
+                  <small id="weight-report-max-date">-</small>
+                </article>
+              </section>
+
+              <section class="report-grid" aria-label="体重报表图表">
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>体重趋势</h3>
+                    <span>按每天最后一次体重记录绘制</span>
+                  </div>
+                  <div class="control-chart" id="weight-report-trend-chart"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>无体重记录日期</h3>
+                    <span>判断趋势前先看记录覆盖</span>
+                  </div>
+                  <div class="date-chip-list" id="weight-report-no-record-days"></div>
+                </article>
+
+                <article class="chart-card">
+                  <div class="chart-heading">
+                    <h3>需要留意的日期</h3>
+                    <span>较上次记录变化 1kg 以上</span>
+                  </div>
+                  <div class="attention-list" id="weight-report-attention-days"></div>
+                </article>
+
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>监控建议</h3>
+                    <span>结合排便、饮食、用药一起看</span>
+                  </div>
+                  <div class="insight-list" id="weight-report-insights"></div>
                 </article>
               </section>
             </section>

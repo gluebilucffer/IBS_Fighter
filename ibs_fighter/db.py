@@ -63,6 +63,7 @@ def migrate_database(conn: sqlite3.Connection) -> None:
         rebuild_medications_table(conn)
     ensure_time_metadata_columns(conn, "medications")
     ensure_time_metadata_columns(conn, "exercises")
+    ensure_time_metadata_columns(conn, "body_weights")
     backfill_medication_units(conn)
     drop_sleep_module(conn)
 

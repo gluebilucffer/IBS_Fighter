@@ -4,9 +4,10 @@ export const tableLabels = {
   medications: "用药",
   medication_products: "药物",
   exercises: "运动",
+  body_weights: "体重",
 };
 
-export const trackingTables = ["bowel_movements", "meals", "medications", "exercises"];
+export const trackingTables = ["bowel_movements", "meals", "medications", "exercises", "body_weights"];
 
 export const tableFields = {
   bowel_movements: [
@@ -47,6 +48,15 @@ export const tableFields = {
     "intensity",
     "notes",
   ],
+  body_weights: [
+    "id",
+    "measured_at",
+    "weight_kg",
+    "body_fat_percent",
+    "waist_cm",
+    "measurement_context",
+    "notes",
+  ],
 };
 
 export const numericFields = new Set([
@@ -55,6 +65,9 @@ export const numericFields = new Set([
   "product_id",
   "quantity_value",
   "duration_minutes",
+  "weight_kg",
+  "body_fat_percent",
+  "waist_cm",
 ]);
 
 export const bristolLabels = {

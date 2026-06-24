@@ -174,6 +174,8 @@ def build_day_payload(selected_date: str) -> dict:
         if item.get("bristol_type") is not None
     ]
     exercise_minutes = sum(item.get("duration_minutes") or 0 for item in records["exercises"])
+    selected_weight = records["body_weights"][-1] if records["body_weights"] else None
+    latest_weight = fetch_latest_body_weight()
 
     avg_bristol = None
     if bristol_values:
@@ -189,6 +191,12 @@ def build_day_payload(selected_date: str) -> dict:
             "meals": len(records["meals"]),
             "medications": len(records["medications"]),
             "exercise_minutes": exercise_minutes,
+            "weight_entries": len(records["body_weights"]),
+            "weight_kg": selected_weight["weight_kg"] if selected_weight else None,
+            "latest_weight_kg": latest_weight["weight_kg"] if latest_weight else None,
+            "latest_weight_date": (
+                latest_weight["measured_at"][:10] if latest_weight and latest_weight.get("measured_at") else None
+            ),
         },
         "checklist": build_daily_checklist(records, exercise_minutes),
         "records": records,
@@ -196,6 +204,19 @@ def build_day_payload(selected_date: str) -> dict:
         "meal_locations": shortcuts["meal_locations"],
         "shortcuts": shortcuts,
     }
+
+
+def fetch_latest_body_weight() -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT id, measured_at, weight_kg, body_fat_percent, waist_cm, measurement_context
+            FROM body_weights
+            ORDER BY measured_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+    return row_to_dict(row) if row else None
 
 
 def build_daily_checklist(records: dict, exercise_minutes: int) -> list[dict]:
@@ -207,6 +228,7 @@ def build_daily_checklist(records: dict, exercise_minutes: int) -> list[dict]:
         checklist_item("dinner", "晚餐", "晚餐" in meal_types),
         checklist_item("medications", "用药", len(records["medications"]) > 0, len(records["medications"])),
         checklist_item("exercise", "运动", len(records["exercises"]) > 0, exercise_minutes, "分钟"),
+        checklist_item("weight", "体重", len(records["body_weights"]) > 0, len(records["body_weights"])),
     ]
 
 

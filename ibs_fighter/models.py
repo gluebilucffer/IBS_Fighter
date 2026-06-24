@@ -6,6 +6,7 @@ TRACKING_TABLES = [
     "meals",
     "medications",
     "exercises",
+    "body_weights",
 ]
 
 
@@ -85,5 +86,21 @@ TABLES = {
         "computed_fields": {"started_timezone", "started_at_utc"},
         "required": {"started_at", "activity_type"},
         "order": "started_at ASC, id ASC",
+    },
+    "body_weights": {
+        "date_column": "measured_at",
+        "fields": {
+            "measured_at": "text",
+            "measured_timezone": "text",
+            "measured_at_utc": "text",
+            "weight_kg": "float",
+            "body_fat_percent": "float",
+            "waist_cm": "float",
+            "measurement_context": "text",
+            "notes": "text",
+        },
+        "computed_fields": {"measured_timezone", "measured_at_utc"},
+        "required": {"measured_at", "weight_kg"},
+        "order": "measured_at ASC, id ASC",
     },
 }

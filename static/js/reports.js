@@ -16,6 +16,10 @@ export async function loadReport(endDate = state.date || today()) {
 function renderReport(report) {
   if (!report) return;
   updateReportShell(report);
+  if (report.module === "weight") {
+    renderWeightReport(report);
+    return;
+  }
   if (report.module === "medications") {
     renderMedicationReport(report);
     return;
@@ -25,7 +29,12 @@ function renderReport(report) {
 
 
 function updateReportShell(report) {
-  const moduleLabel = report.module === "medications" ? "用药报表" : "排便报表";
+  const moduleLabels = {
+    bowel: "排便报表",
+    medications: "用药报表",
+    weight: "体重报表",
+  };
+  const moduleLabel = moduleLabels[report.module] || "排便报表";
   const rangeNote = report.range.clamped_to_tracking_start
     ? ` · 从 ${report.range.tracking_start_date} 起统计`
     : "";
@@ -297,6 +306,137 @@ function renderMedicationReport(report) {
 }
 
 
+function renderWeightReport(report) {
+  const summary = report.summary || {};
+
+  document.querySelector("#weight-report-latest").textContent = formatWeight(summary.latest_weight_kg);
+  document.querySelector("#weight-report-latest-date").textContent = summary.latest_date || "周期内最近一次";
+  document.querySelector("#weight-report-change").textContent = formatSignedWeight(summary.change_kg);
+  document.querySelector("#weight-report-coverage").textContent = `${summary.coverage_rate ?? 0}%`;
+  document.querySelector("#weight-report-record-days").textContent = `${summary.days_with_records ?? 0} 天有记录`;
+  document.querySelector("#weight-report-average").textContent = formatWeight(summary.avg_weight_kg);
+  document.querySelector("#weight-report-min").textContent = formatWeight(summary.min_weight_kg);
+  document.querySelector("#weight-report-min-date").textContent = summary.min_weight_date || "-";
+  document.querySelector("#weight-report-max").textContent = formatWeight(summary.max_weight_kg);
+  document.querySelector("#weight-report-max-date").textContent = summary.max_weight_date || "-";
+
+  renderWeightTrendChart("#weight-report-trend-chart", report.trend_points || []);
+  renderDateChips(
+    "#weight-report-no-record-days",
+    report.no_record_dates || [],
+    report.range.days,
+    "这个周期每天都有体重记录",
+    "天没有体重记录",
+  );
+  renderWeightAttentionDays(report.attention_days || []);
+  renderInsightsFor("#weight-report-insights", report.insights || [], "记录还不够，暂时没有体重监控建议");
+}
+
+
+function renderWeightTrendChart(selector, points) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+
+  if (!points.length) {
+    container.innerHTML = '<div class="empty">这个周期还没有体重数据</div>';
+    return;
+  }
+
+  const width = 720;
+  const height = 300;
+  const padding = { top: 24, right: 30, bottom: 36, left: 56 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const weights = points.map((point) => Number(point.weight_kg)).filter((value) => Number.isFinite(value));
+  const rawMin = Math.min(...weights);
+  const rawMax = Math.max(...weights);
+  const span = Math.max(rawMax - rawMin, 1);
+  const minValue = Math.floor((rawMin - span * 0.15) * 10) / 10;
+  const maxValue = Math.ceil((rawMax + span * 0.15) * 10) / 10;
+  const xFor = (index) => {
+    if (points.length === 1) return padding.left + chartWidth / 2;
+    return padding.left + (index / (points.length - 1)) * chartWidth;
+  };
+  const yFor = (value) => {
+    const bounded = Math.min(maxValue, Math.max(minValue, Number(value) || minValue));
+    return padding.top + ((maxValue - bounded) / (maxValue - minValue)) * chartHeight;
+  };
+  const pointCoords = points.map((point, index) => ({
+    ...point,
+    x: xFor(index),
+    y: yFor(point.weight_kg),
+  }));
+  const path = pointCoords
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(" ");
+  const yTicks = [maxValue, (maxValue + minValue) / 2, minValue];
+  const change = points.length > 1
+    ? Number(points[points.length - 1].weight_kg) - Number(points[0].weight_kg)
+    : null;
+
+  const svg = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="体重趋势图">
+      ${yTicks.map((tick) => {
+        const y = yFor(tick);
+        return `
+          <line class="control-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+          <text class="control-axis-label" x="${padding.left - 12}" y="${y + 4}" text-anchor="end">${escapeHtml(formatNumber(tick))}</text>
+        `;
+      }).join("")}
+      <line class="control-axis-line" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}"></line>
+      <line class="control-axis-line" x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}"></line>
+      <path class="control-value-line" d="${path}"></path>
+      ${pointCoords.map((point) => {
+        const context = point.measurement_context ? ` · ${point.measurement_context}` : "";
+        const changeText = point.change_from_previous_kg === null || point.change_from_previous_kg === undefined
+          ? ""
+          : ` · 较上次 ${formatSignedWeight(point.change_from_previous_kg)}`;
+        return `
+          <g class="control-point safe">
+            <circle cx="${point.x}" cy="${point.y}" r="6"></circle>
+            <title>${escapeHtml(`${point.date} · ${formatWeight(point.weight_kg)}${context}${changeText}`)}</title>
+          </g>
+        `;
+      }).join("")}
+      <text class="control-axis-caption" x="${padding.left}" y="${height - 10}">${escapeHtml(shortDate(points[0].date))}</text>
+      <text class="control-axis-caption" x="${width - padding.right}" y="${height - 10}" text-anchor="end">${escapeHtml(shortDate(points[points.length - 1].date))}</text>
+    </svg>
+  `;
+
+  container.innerHTML = `
+    <div class="control-legend">
+      <span><i class="legend-safe"></i>记录点 ${points.length} 天</span>
+      <span>范围 ${escapeHtml(formatWeight(rawMin))} - ${escapeHtml(formatWeight(rawMax))}</span>
+      <strong>周期变化 ${escapeHtml(formatSignedWeight(change))}</strong>
+    </div>
+    ${svg}
+  `;
+}
+
+
+function renderWeightAttentionDays(rows) {
+  const container = document.querySelector("#weight-report-attention-days");
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty">这个周期没有较上次记录变化 1kg 以上的日期</div>';
+    return;
+  }
+
+  container.innerHTML = rows
+    .map((row) => {
+      const meta = [row.measurement_context, ...(row.reasons || [])].filter(Boolean);
+      return `
+        <div class="attention-item">
+          <strong>${escapeHtml(row.date)}</strong>
+          <span>${escapeHtml(meta.join(" · "))}</span>
+          <b>${escapeHtml(formatWeight(row.weight_kg))}</b>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+
 function renderBarRows(selector, rows, options) {
   const container = document.querySelector(selector);
   if (!container) return;
@@ -452,6 +592,20 @@ function renderInsightsFor(selector, rows, emptyText) {
   container.innerHTML = rows
     .map((text) => `<div class="insight-item">${escapeHtml(text)}</div>`)
     .join("");
+}
+
+
+function formatWeight(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  return `${formatNumber(value)}kg`;
+}
+
+
+function formatSignedWeight(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "-";
+  return `${number > 0 ? "+" : ""}${formatNumber(number)}kg`;
 }
 
 

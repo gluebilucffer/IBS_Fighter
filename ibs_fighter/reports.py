@@ -30,6 +30,8 @@ def build_report(
     end_date_text: str | None,
     days: int,
 ) -> dict:
+    if module == "weight":
+        return build_weight_report(conn, end_date_text, days)
     if module == "medications":
         return build_medication_report(conn, end_date_text, days)
     return build_bowel_report(conn, end_date_text, days)
@@ -49,6 +51,12 @@ def safe_rate(part: int, whole: int) -> float:
     if whole == 0:
         return 0
     return round(part / whole * 100, 1)
+
+
+def rounded_float(value: object) -> float | None:
+    if value is None:
+        return None
+    return round(float(value), 1)
 
 
 def report_range(
@@ -119,6 +127,27 @@ def build_medication_report(
     )
 
 
+def build_weight_report(
+    conn: sqlite3.Connection,
+    end_date_text: str | None,
+    days: int,
+) -> dict:
+    requested_days, effective_days, start, end, date_keys, clamped = report_range(
+        end_date_text,
+        days,
+    )
+    rows = fetch_weight_rows(conn, start.isoformat(), end.isoformat())
+    return build_weight_report_from_rows(
+        rows,
+        date_keys,
+        requested_days,
+        effective_days,
+        start.isoformat(),
+        end.isoformat(),
+        clamped,
+    )
+
+
 def fetch_bowel_rows(
     conn: sqlite3.Connection,
     start_date: str,
@@ -170,6 +199,32 @@ def fetch_medication_rows(
         LEFT JOIN medication_products ON medication_products.id = medications.product_id
         WHERE date(medications.taken_at) BETWEEN ? AND ?
         ORDER BY medications.taken_at ASC, medications.id ASC
+        """,
+        (start_date, end_date),
+    ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def fetch_weight_rows(
+    conn: sqlite3.Connection,
+    start_date: str,
+    end_date: str,
+) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+            id,
+            measured_at,
+            weight_kg,
+            body_fat_percent,
+            waist_cm,
+            measurement_context,
+            notes,
+            created_at,
+            updated_at
+        FROM body_weights
+        WHERE date(measured_at) BETWEEN ? AND ?
+        ORDER BY measured_at ASC, id ASC
         """,
         (start_date, end_date),
     ).fetchall()
@@ -325,6 +380,122 @@ def build_bowel_report_from_rows(
     }
 
 
+def build_weight_report_from_rows(
+    rows: list[dict],
+    date_keys: list[str],
+    requested_days: int,
+    effective_days: int,
+    start_date: str,
+    end_date: str,
+    clamped_to_tracking_start: bool,
+) -> dict:
+    daily = {
+        day: {
+            "date": day,
+            "count": 0,
+            "measured_at": None,
+            "weight_kg": None,
+            "body_fat_percent": None,
+            "waist_cm": None,
+            "measurement_context": None,
+            "notes": None,
+        }
+        for day in date_keys
+    }
+
+    for item in rows:
+        day = (item.get("measured_at") or "")[:10]
+        if day not in daily:
+            continue
+
+        day_row = daily[day]
+        day_row["count"] += 1
+        day_row["measured_at"] = item.get("measured_at")
+        day_row["weight_kg"] = rounded_float(item.get("weight_kg"))
+        day_row["body_fat_percent"] = rounded_float(item.get("body_fat_percent"))
+        day_row["waist_cm"] = rounded_float(item.get("waist_cm"))
+        day_row["measurement_context"] = item.get("measurement_context")
+        day_row["notes"] = item.get("notes")
+
+    daily_rows = [daily[day] for day in date_keys]
+    trend_points = []
+    previous_point = None
+    for row in daily_rows:
+        if row["weight_kg"] is None:
+            continue
+
+        point = {
+            "date": row["date"],
+            "measured_at": row["measured_at"],
+            "weight_kg": row["weight_kg"],
+            "body_fat_percent": row["body_fat_percent"],
+            "waist_cm": row["waist_cm"],
+            "measurement_context": row["measurement_context"],
+            "record_count": row["count"],
+            "change_from_previous_kg": None,
+        }
+        if previous_point:
+            point["change_from_previous_kg"] = rounded_float(
+                point["weight_kg"] - previous_point["weight_kg"]
+            )
+        trend_points.append(point)
+        previous_point = point
+
+    no_record_days = [row["date"] for row in daily_rows if row["count"] == 0]
+    days_with_records = len(trend_points)
+    weight_values = [point["weight_kg"] for point in trend_points]
+    first_point = trend_points[0] if trend_points else None
+    latest_point = trend_points[-1] if trend_points else None
+    min_point = min(trend_points, key=lambda point: point["weight_kg"]) if trend_points else None
+    max_point = max(trend_points, key=lambda point: point["weight_kg"]) if trend_points else None
+    change_kg = (
+        rounded_float(latest_point["weight_kg"] - first_point["weight_kg"])
+        if first_point and latest_point and first_point is not latest_point
+        else None
+    )
+
+    return {
+        "module": "weight",
+        "range": {
+            "days": effective_days,
+            "requested_days": requested_days,
+            "start_date": start_date,
+            "end_date": end_date,
+            "dates": date_keys,
+            "tracking_start_date": REPORT_TRACKING_START_DATE.isoformat(),
+            "clamped_to_tracking_start": clamped_to_tracking_start,
+        },
+        "summary": {
+            "total_records": len(rows),
+            "days_with_records": days_with_records,
+            "no_record_days": len(no_record_days),
+            "coverage_rate": safe_rate(days_with_records, effective_days),
+            "latest_weight_kg": latest_point["weight_kg"] if latest_point else None,
+            "latest_date": latest_point["date"] if latest_point else None,
+            "first_weight_kg": first_point["weight_kg"] if first_point else None,
+            "first_date": first_point["date"] if first_point else None,
+            "change_kg": change_kg,
+            "avg_weight_kg": safe_average(weight_values),
+            "min_weight_kg": min_point["weight_kg"] if min_point else None,
+            "min_weight_date": min_point["date"] if min_point else None,
+            "max_weight_kg": max_point["weight_kg"] if max_point else None,
+            "max_weight_date": max_point["date"] if max_point else None,
+        },
+        "daily": daily_rows,
+        "trend_points": trend_points,
+        "attention_days": build_weight_attention_days(trend_points),
+        "no_record_dates": no_record_days,
+        "insights": build_weight_insights(
+            total_records=len(rows),
+            days_with_records=days_with_records,
+            change_kg=change_kg,
+            coverage_rate=safe_rate(days_with_records, effective_days),
+            no_record_days=len(no_record_days),
+            days=effective_days,
+        ),
+    }
+
+
 def build_medication_report_from_rows(
     rows: list[dict],
     date_keys: list[str],
@@ -473,6 +644,24 @@ def build_medication_report_from_rows(
     }
 
 
+def build_weight_attention_days(points: list[dict]) -> list[dict]:
+    attention = []
+    for point in points:
+        change = point.get("change_from_previous_kg")
+        if change is None or abs(change) < 1:
+            continue
+        attention.append(
+            {
+                "date": point["date"],
+                "weight_kg": point["weight_kg"],
+                "measurement_context": point.get("measurement_context"),
+                "change_from_previous_kg": change,
+                "reasons": [f"较上次记录变化 {change:+.1f} kg"],
+            }
+        )
+    return attention
+
+
 def bristol_quality_bucket(bristol_type: int) -> str:
     for key, config in QUALITY_BUCKETS.items():
         if bristol_type in config["levels"]:
@@ -611,4 +800,42 @@ def build_medication_insights(
     if no_record_days >= max(2, round(days * 0.25)):
         insights.append(f"有 {no_record_days} 天没有用药记录，需要区分是未服用还是忘记记录。")
 
+    return insights
+
+
+def build_weight_insights(
+    *,
+    total_records: int,
+    days_with_records: int,
+    change_kg: float | None,
+    coverage_rate: float,
+    no_record_days: int,
+    days: int,
+) -> list[str]:
+    if total_records == 0:
+        return ["这个周期没有体重记录，先固定同一时间和同一条件记录，之后再看趋势。"]
+
+    insights = [
+        f"这个周期有 {days_with_records} 天体重数据，记录覆盖率 {coverage_rate}%。"
+    ]
+    if change_kg is not None:
+        if change_kg <= -2:
+            insights.append(
+                f"周期内体重下降 {abs(change_kg):.1f} kg；如果不是主动减重，建议和饮食摄入、腹泻频率、用药变化一起回看。"
+            )
+        elif change_kg >= 2:
+            insights.append(
+                f"周期内体重上升 {change_kg:.1f} kg；建议确认是否与测量时间、盐分摄入、运动或便秘积累有关。"
+            )
+        elif abs(change_kg) < 1:
+            insights.append("周期内体重变化小于 1 kg，更适合看周均趋势，不要被单日波动带偏。")
+        else:
+            insights.append(f"周期内体重变化 {change_kg:+.1f} kg，建议继续按同一条件记录。")
+
+    if no_record_days >= max(2, round(days * 0.4)):
+        insights.append(
+            f"有 {no_record_days} 天没有体重记录；体重监控最好保持固定频率，否则很难判断真实趋势。"
+        )
+
+    insights.append("后续分析时，把体重变化日期和排便、饮食、用药模块按 3-7 天窗口一起看。")
     return insights

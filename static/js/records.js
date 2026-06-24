@@ -1,6 +1,6 @@
 import { bristolLabels, tableLabels } from "./constants.js";
 import { state } from "./state.js";
-import { escapeHtml, formatDateTime } from "./utils.js";
+import { escapeHtml, formatDateTime, formatNumber } from "./utils.js";
 
 
 export function renderSummary(summary) {
@@ -9,6 +9,26 @@ export function renderSummary(summary) {
   document.querySelector("#summary-meals").textContent = summary.meals ?? 0;
   document.querySelector("#summary-medications").textContent = summary.medications ?? 0;
   document.querySelector("#summary-exercise").textContent = summary.exercise_minutes ?? 0;
+  document.querySelector("#summary-weight").textContent =
+    summary.weight_kg !== null && summary.weight_kg !== undefined
+      ? `${formatNumber(summary.weight_kg)}kg`
+      : "-";
+
+  const heroWeight = document.querySelector("#hero-current-weight");
+  const heroWeightNote = document.querySelector("#hero-weight-note");
+  if (heroWeight) {
+    heroWeight.textContent =
+      summary.latest_weight_kg !== null && summary.latest_weight_kg !== undefined
+        ? `${formatNumber(summary.latest_weight_kg)}kg`
+        : "-";
+  }
+  if (heroWeightNote) {
+    if (summary.latest_weight_date) {
+      heroWeightNote.textContent = `最近记录 ${summary.latest_weight_date}`;
+    } else {
+      heroWeightNote.textContent = "先建立体重基线";
+    }
+  }
 }
 
 
@@ -132,6 +152,9 @@ function recordTitle(table, record) {
   if (table === "exercises") {
     return record.activity_type;
   }
+  if (table === "body_weights") {
+    return `${formatNumber(record.weight_kg)} kg`;
+  }
   return "";
 }
 
@@ -142,6 +165,7 @@ function recordTime(table, record) {
     meals: "eaten_at",
     medications: "taken_at",
     exercises: "started_at",
+    body_weights: "measured_at",
   }[table];
   return key && record[key] ? formatDateTime(record[key]) : "";
 }
@@ -197,6 +221,26 @@ function recordDetails(table, record) {
     add("活动", record.activity_type);
     add("时区", record.started_timezone);
     add("UTC", record.started_at_utc);
+    add("备注", record.notes);
+  }
+
+  if (table === "body_weights") {
+    add("体重", `${formatNumber(record.weight_kg)} kg`);
+    add(
+      "体脂",
+      record.body_fat_percent !== null && record.body_fat_percent !== undefined
+        ? `${formatNumber(record.body_fat_percent)}%`
+        : null,
+    );
+    add(
+      "腰围",
+      record.waist_cm !== null && record.waist_cm !== undefined
+        ? `${formatNumber(record.waist_cm)} cm`
+        : null,
+    );
+    add("条件", record.measurement_context);
+    add("时区", record.measured_timezone);
+    add("UTC", record.measured_at_utc);
     add("备注", record.notes);
   }
 
