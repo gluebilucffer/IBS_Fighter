@@ -5,9 +5,17 @@ export const tableLabels = {
   medication_products: "药物",
   exercises: "运动",
   body_weights: "体重",
+  hemorrhoid_events: "痔疮",
 };
 
-export const trackingTables = ["bowel_movements", "meals", "medications", "exercises", "body_weights"];
+export const trackingTables = [
+  "bowel_movements",
+  "meals",
+  "medications",
+  "exercises",
+  "body_weights",
+  "hemorrhoid_events",
+];
 
 export const tableFields = {
   bowel_movements: [
@@ -55,6 +63,11 @@ export const tableFields = {
     "measurement_context",
     "notes",
   ],
+  hemorrhoid_events: [
+    "id",
+    "occurred_at",
+    "bleeding",
+  ],
 };
 
 export const numericFields = new Set([
@@ -64,6 +77,7 @@ export const numericFields = new Set([
   "quantity_value",
   "duration_minutes",
   "weight_kg",
+  "bleeding",
 ]);
 
 export const bristolLabels = {

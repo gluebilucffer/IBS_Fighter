@@ -70,6 +70,10 @@
               <span>记录体重</span>
               <small>体重 / 测量条件</small>
             </button>
+            <button type="button" data-quick-action="hemorrhoid_events">
+              <span>记录痔疮</span>
+              <small>时间 / 是否流血</small>
+            </button>
           </section>
 
           <section class="daily-checklist" aria-label="今日检查">
@@ -109,6 +113,11 @@
               <strong id="summary-weight">-</strong>
               <small>选中日期最近一次</small>
             </article>
+            <article class="summary-card">
+              <span>痔疮</span>
+              <strong id="summary-hemorrhoids">0</strong>
+              <small>流血 <b id="summary-hemorrhoid-bleeding">0</b> 次</small>
+            </article>
           </section>
         </section>
 
@@ -127,6 +136,7 @@
             <button class="record-tab" type="button" data-record-tab="medications">用药</button>
             <button class="record-tab" type="button" data-record-tab="exercises">运动</button>
             <button class="record-tab" type="button" data-record-tab="body_weights">体重</button>
+            <button class="record-tab" type="button" data-record-tab="hemorrhoid_events">痔疮</button>
           </nav>
 
           <section class="record-panels">
@@ -381,6 +391,31 @@
                   <button type="submit">保存体重</button>
                 </form>
                 <div class="record-list" data-list="body_weights"></div>
+              </article>
+            </section>
+
+            <section class="record-panel" data-record-panel="hemorrhoid_events">
+              <article class="panel record-editor" data-table="hemorrhoid_events">
+                <div class="panel-heading">
+                  <h2>痔疮</h2>
+                  <button class="ghost" type="button" data-reset="hemorrhoid_events">清空</button>
+                </div>
+                <form data-form="hemorrhoid_events">
+                  <input name="id" type="hidden" />
+                  <label>
+                    时间
+                    <input name="occurred_at" type="datetime-local" required />
+                  </label>
+                  <div class="field-group">
+                    <span class="field-title">是否流血</span>
+                    <div class="choice-grid bleeding-grid">
+                      <label class="choice-pill"><input name="bleeding" type="radio" value="0" checked required /><span>无</span></label>
+                      <label class="choice-pill danger"><input name="bleeding" type="radio" value="1" /><span>有</span></label>
+                    </div>
+                  </div>
+                  <button type="submit">保存痔疮</button>
+                </form>
+                <div class="record-list" data-list="hemorrhoid_events"></div>
               </article>
             </section>
           </section>

@@ -12,6 +12,7 @@ TIME_FIELDS = {
     "medications": ("taken_at", "taken_timezone", "taken_at_utc"),
     "exercises": ("started_at", "started_timezone", "started_at_utc"),
     "body_weights": ("measured_at", "measured_timezone", "measured_at_utc"),
+    "hemorrhoid_events": ("occurred_at", "occurred_timezone", "occurred_at_utc"),
 }
 
 

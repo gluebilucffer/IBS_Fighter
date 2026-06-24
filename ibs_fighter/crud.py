@@ -176,6 +176,8 @@ def build_day_payload(selected_date: str) -> dict:
     exercise_minutes = sum(item.get("duration_minutes") or 0 for item in records["exercises"])
     selected_weight = records["body_weights"][-1] if records["body_weights"] else None
     latest_weight = fetch_latest_body_weight()
+    hemorrhoid_records = records["hemorrhoid_events"]
+    hemorrhoid_bleeding_events = sum(1 for item in hemorrhoid_records if item.get("bleeding"))
 
     avg_bristol = None
     if bristol_values:
@@ -193,6 +195,8 @@ def build_day_payload(selected_date: str) -> dict:
             "exercise_minutes": exercise_minutes,
             "weight_entries": len(records["body_weights"]),
             "weight_kg": selected_weight["weight_kg"] if selected_weight else None,
+            "hemorrhoid_events": len(hemorrhoid_records),
+            "hemorrhoid_bleeding_events": hemorrhoid_bleeding_events,
             "latest_weight_kg": latest_weight["weight_kg"] if latest_weight else None,
             "latest_weight_date": (
                 latest_weight["measured_at"][:10] if latest_weight and latest_weight.get("measured_at") else None

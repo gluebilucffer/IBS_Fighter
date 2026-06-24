@@ -80,12 +80,23 @@ CREATE TABLE IF NOT EXISTS body_weights (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS hemorrhoid_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    occurred_at TEXT NOT NULL,
+    occurred_timezone TEXT,
+    occurred_at_utc TEXT,
+    bleeding INTEGER NOT NULL DEFAULT 0 CHECK (bleeding IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_bowel_movements_occurred_at ON bowel_movements (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_meals_eaten_at ON meals (eaten_at);
 CREATE INDEX IF NOT EXISTS idx_medication_products_name ON medication_products (product_name);
 CREATE INDEX IF NOT EXISTS idx_medications_taken_at ON medications (taken_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_started_at ON exercises (started_at);
 CREATE INDEX IF NOT EXISTS idx_body_weights_measured_at ON body_weights (measured_at);
+CREATE INDEX IF NOT EXISTS idx_hemorrhoid_events_occurred_at ON hemorrhoid_events (occurred_at);
 
 CREATE TRIGGER IF NOT EXISTS trg_bowel_movements_updated_at
 AFTER UPDATE ON bowel_movements
@@ -127,4 +138,11 @@ AFTER UPDATE ON body_weights
 FOR EACH ROW
 BEGIN
     UPDATE body_weights SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_hemorrhoid_events_updated_at
+AFTER UPDATE ON hemorrhoid_events
+FOR EACH ROW
+BEGIN
+    UPDATE hemorrhoid_events SET updated_at = datetime('now') WHERE id = OLD.id;
 END;

@@ -64,6 +64,8 @@ def migrate_database(conn: sqlite3.Connection) -> None:
     ensure_time_metadata_columns(conn, "medications")
     ensure_time_metadata_columns(conn, "exercises")
     ensure_time_metadata_columns(conn, "body_weights")
+    ensure_hemorrhoid_events_table(conn)
+    ensure_time_metadata_columns(conn, "hemorrhoid_events")
     backfill_medication_units(conn)
     drop_sleep_module(conn)
 
@@ -113,6 +115,38 @@ def drop_sleep_module(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TRIGGER IF EXISTS trg_sleep_entries_updated_at")
     conn.execute("DROP INDEX IF EXISTS idx_sleep_entries_sleep_date")
     conn.execute("DROP TABLE IF EXISTS sleep_entries")
+
+
+def ensure_hemorrhoid_events_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS hemorrhoid_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            occurred_at TEXT NOT NULL,
+            occurred_timezone TEXT,
+            occurred_at_utc TEXT,
+            bleeding INTEGER NOT NULL DEFAULT 0 CHECK (bleeding IN (0, 1)),
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_hemorrhoid_events_occurred_at
+        ON hemorrhoid_events (occurred_at)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_hemorrhoid_events_updated_at
+        AFTER UPDATE ON hemorrhoid_events
+        FOR EACH ROW
+        BEGIN
+            UPDATE hemorrhoid_events SET updated_at = datetime('now') WHERE id = OLD.id;
+        END;
+        """
+    )
 
 
 def find_or_create_medication_product(

@@ -87,6 +87,9 @@ export function resetForm(table) {
   if (table === "meals") {
     getControl(form, "symptoms_after").value = "无明显反应";
   }
+  if (table === "hemorrhoid_events") {
+    getControl(form, "bleeding").value = "0";
+  }
   if (table === "medications" || table === "medication_products") {
     populateMedicationPickers();
   }

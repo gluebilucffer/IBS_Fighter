@@ -7,6 +7,7 @@ TRACKING_TABLES = [
     "medications",
     "exercises",
     "body_weights",
+    "hemorrhoid_events",
 ]
 
 
@@ -100,5 +101,17 @@ TABLES = {
         "computed_fields": {"measured_timezone", "measured_at_utc"},
         "required": {"measured_at", "weight_kg"},
         "order": "measured_at ASC, id ASC",
+    },
+    "hemorrhoid_events": {
+        "date_column": "occurred_at",
+        "fields": {
+            "occurred_at": "text",
+            "occurred_timezone": "text",
+            "occurred_at_utc": "text",
+            "bleeding": "int",
+        },
+        "computed_fields": {"occurred_timezone", "occurred_at_utc"},
+        "required": {"occurred_at", "bleeding"},
+        "order": "occurred_at ASC, id ASC",
     },
 }

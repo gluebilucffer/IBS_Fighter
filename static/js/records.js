@@ -13,6 +13,9 @@ export function renderSummary(summary) {
     summary.weight_kg !== null && summary.weight_kg !== undefined
       ? `${formatNumber(summary.weight_kg)}kg`
       : "-";
+  document.querySelector("#summary-hemorrhoids").textContent = summary.hemorrhoid_events ?? 0;
+  document.querySelector("#summary-hemorrhoid-bleeding").textContent =
+    summary.hemorrhoid_bleeding_events ?? 0;
 
   const heroWeight = document.querySelector("#hero-current-weight");
   const heroWeightNote = document.querySelector("#hero-weight-note");
@@ -155,6 +158,9 @@ function recordTitle(table, record) {
   if (table === "body_weights") {
     return `${formatNumber(record.weight_kg)} kg`;
   }
+  if (table === "hemorrhoid_events") {
+    return record.bleeding ? "痔疮 · 流血" : "痔疮 · 未流血";
+  }
   return "";
 }
 
@@ -166,6 +172,7 @@ function recordTime(table, record) {
     medications: "taken_at",
     exercises: "started_at",
     body_weights: "measured_at",
+    hemorrhoid_events: "occurred_at",
   }[table];
   return key && record[key] ? formatDateTime(record[key]) : "";
 }
@@ -230,6 +237,12 @@ function recordDetails(table, record) {
     add("时区", record.measured_timezone);
     add("UTC", record.measured_at_utc);
     add("备注", record.notes);
+  }
+
+  if (table === "hemorrhoid_events") {
+    add("流血", record.bleeding ? "有" : "无");
+    add("时区", record.occurred_timezone);
+    add("UTC", record.occurred_at_utc);
   }
 
   return rows.join("") || "<div>无备注</div>";
