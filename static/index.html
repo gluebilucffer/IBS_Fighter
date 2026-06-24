@@ -485,6 +485,22 @@
                   <div class="control-chart" id="report-control-chart"></div>
                 </article>
 
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>安全率 p-chart</h3>
+                    <span>每日 Bristol 4-5 占比，对照整体中心线</span>
+                  </div>
+                  <div class="spc-chart" id="report-safety-p-chart"></div>
+                </article>
+
+                <article class="chart-card wide">
+                  <div class="chart-heading">
+                    <h3>异常间隔 g-chart</h3>
+                    <span>两次非安全排便之间隔了几天 / 几次</span>
+                  </div>
+                  <div class="interval-chart" id="report-unsafe-interval-chart"></div>
+                </article>
+
                 <article class="chart-card">
                   <div class="chart-heading">
                     <h3>布里斯托分布</h3>
@@ -531,14 +547,6 @@
                     <span>异常等级、急迫感或一天多次排便</span>
                   </div>
                   <div class="attention-list" id="report-attention-days"></div>
-                </article>
-
-                <article class="chart-card wide">
-                  <div class="chart-heading">
-                    <h3>异常复盘卡</h3>
-                    <span>监控 demo · 自动拉取前 48 小时上下文</span>
-                  </div>
-                  <div class="anomaly-card-list" id="report-anomaly-cards"></div>
                 </article>
 
                 <article class="chart-card wide">

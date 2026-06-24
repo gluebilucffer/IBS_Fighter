@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime, timedelta
+from math import sqrt
 
 
 REPORT_TRACKING_START_DATE = date(2026, 5, 12)
@@ -95,17 +96,6 @@ def build_bowel_report(
         days,
     )
     rows = fetch_bowel_rows(conn, start.isoformat(), end.isoformat())
-    context_start = start - timedelta(days=2)
-    meal_context_rows = fetch_meal_context_rows(
-        conn,
-        context_start.isoformat(),
-        end.isoformat(),
-    )
-    medication_context_rows = fetch_medication_rows(
-        conn,
-        context_start.isoformat(),
-        end.isoformat(),
-    )
     return build_bowel_report_from_rows(
         rows,
         date_keys,
@@ -114,8 +104,6 @@ def build_bowel_report(
         start.isoformat(),
         end.isoformat(),
         clamped,
-        meal_context_rows,
-        medication_context_rows,
     )
 
 
@@ -218,34 +206,6 @@ def fetch_medication_rows(
     return [row_to_dict(row) for row in rows]
 
 
-def fetch_meal_context_rows(
-    conn: sqlite3.Connection,
-    start_date: str,
-    end_date: str,
-) -> list[dict]:
-    rows = conn.execute(
-        """
-        SELECT
-            id,
-            eaten_at,
-            meal_type,
-            location,
-            foods,
-            photo_path,
-            photo_filename,
-            symptoms_after,
-            notes,
-            created_at,
-            updated_at
-        FROM meals
-        WHERE date(eaten_at) BETWEEN ? AND ?
-        ORDER BY eaten_at ASC, id ASC
-        """,
-        (start_date, end_date),
-    ).fetchall()
-    return [row_to_dict(row) for row in rows]
-
-
 def fetch_weight_rows(
     conn: sqlite3.Connection,
     start_date: str,
@@ -278,8 +238,6 @@ def build_bowel_report_from_rows(
     start_date: str,
     end_date: str,
     clamped_to_tracking_start: bool,
-    meal_context_rows: list[dict] | None = None,
-    medication_context_rows: list[dict] | None = None,
 ) -> dict:
     daily = {
         day: {
@@ -358,12 +316,6 @@ def build_bowel_report_from_rows(
         for row in daily_rows
         if row["abnormal_count"] > 0 or row["urgent_count"] > 0 or row["count"] >= 3
     ]
-    anomaly_review_cards = build_anomaly_review_cards(
-        rows,
-        daily,
-        meal_context_rows or [],
-        medication_context_rows or [],
-    )
 
     return {
         "module": "bowel",
@@ -413,7 +365,8 @@ def build_bowel_report_from_rows(
             "safe_max": max(BRISTOL_SAFE_LEVELS),
         },
         "control_points": control_points,
-        "anomaly_review_cards": anomaly_review_cards,
+        "safety_p_chart": build_safety_p_chart(daily_rows, safe_count, total_events),
+        "unsafe_interval_g_chart": build_unsafe_interval_g_chart(rows, end_date),
         "attention_days": attention_days,
         "no_record_dates": no_record_days,
         "insights": build_bowel_insights(
@@ -753,152 +706,160 @@ def parse_local_datetime(value: str | None) -> datetime | None:
     return parsed
 
 
-def rows_in_context_window(
-    rows: list[dict],
-    *,
-    timestamp_key: str,
-    end_at: datetime,
-    hours: int = 48,
-) -> list[dict]:
-    start_at = end_at - timedelta(hours=hours)
-    selected = []
-    for row in rows:
-        row_at = parse_local_datetime(row.get(timestamp_key))
-        if row_at is None:
-            continue
-        if start_at <= row_at <= end_at:
-            selected.append(row)
-    return selected
-
-
-def build_anomaly_review_cards(
-    bowel_rows: list[dict],
-    daily: dict[str, dict],
-    meal_rows: list[dict],
-    medication_rows: list[dict],
-) -> list[dict]:
-    cards = []
-    for item in bowel_rows:
-        occurred_at = parse_local_datetime(item.get("occurred_at"))
-        if occurred_at is None:
+def build_safety_p_chart(
+    daily_rows: list[dict],
+    safe_count: int,
+    total_events: int,
+) -> dict:
+    p_bar = safe_count / total_events if total_events else None
+    points = []
+    for row in daily_rows:
+        count = row["count"]
+        if count == 0:
+            points.append(
+                {
+                    "date": row["date"],
+                    "count": 0,
+                    "safe_count": 0,
+                    "unsafe_count": 0,
+                    "safe_rate": None,
+                    "centerline": safe_rate(safe_count, total_events),
+                    "lcl": None,
+                    "ucl": None,
+                    "status": "no_data",
+                }
+            )
             continue
 
-        day = (item.get("occurred_at") or "")[:10]
-        day_row = daily.get(day) or {}
-        bristol = int(item["bristol_type"]) if item.get("bristol_type") is not None else None
-        urgency = int(item["urgency"]) if item.get("urgency") is not None else None
-        reasons = build_anomaly_reasons(bristol, urgency, day_row)
-        if not reasons:
-            continue
+        row_safe_count = row["safe_count"]
+        row_safe_rate = row_safe_count / count
+        lcl = None
+        ucl = None
+        status = "stable"
+        if p_bar is not None:
+            sigma = sqrt(p_bar * (1 - p_bar) / count)
+            lcl = max(0, p_bar - 3 * sigma)
+            ucl = min(1, p_bar + 3 * sigma)
+            if row_safe_rate < lcl or row_safe_rate > ucl:
+                status = "special_cause"
+            elif row["abnormal_count"] > 0:
+                status = "has_unsafe"
 
-        context_meals = rows_in_context_window(
-            meal_rows,
-            timestamp_key="eaten_at",
-            end_at=occurred_at,
-        )
-        context_medications = rows_in_context_window(
-            medication_rows,
-            timestamp_key="taken_at",
-            end_at=occurred_at,
-        )
-        cards.append(
+        points.append(
             {
-                "id": item["id"],
-                "date": day,
-                "occurred_at": item.get("occurred_at"),
-                "bristol_type": bristol,
-                "urgency": urgency,
-                "location": item.get("location") or "未记录地点",
-                "color": item.get("color") or "未记录颜色",
-                "notes": item.get("notes") or "",
-                "reasons": reasons,
-                "context_window_hours": 48,
-                "context": {
-                    "meals": [compact_meal_context(row) for row in context_meals],
-                    "medications": [
-                        compact_medication_context(row)
-                        for row in context_medications
-                    ],
-                    "summary": build_anomaly_context_summary(
-                        context_meals,
-                        context_medications,
-                    ),
-                },
-                "monitoring_prompts": [
-                    "前 48 小时是否有明显饮食变化？",
-                    "是否有新药、停药、剂量变化或服用时间变化？",
-                    "地点、出差、睡眠或压力是否和以往不同？",
-                ],
+                "date": row["date"],
+                "count": count,
+                "safe_count": row_safe_count,
+                "unsafe_count": row["abnormal_count"],
+                "safe_rate": round(row_safe_rate * 100, 1),
+                "centerline": safe_rate(safe_count, total_events),
+                "lcl": round(lcl * 100, 1) if lcl is not None else None,
+                "ucl": round(ucl * 100, 1) if ucl is not None else None,
+                "status": status,
             }
         )
 
-    return sorted(cards, key=lambda row: (row["occurred_at"] or "", row["id"]), reverse=True)
+    return {
+        "overall_safe_rate": safe_rate(safe_count, total_events),
+        "safe_count": safe_count,
+        "total_events": total_events,
+        "days_with_records": sum(1 for row in daily_rows if row["count"] > 0),
+        "points": points,
+    }
 
 
-def build_anomaly_reasons(
-    bristol: int | None,
-    urgency: int | None,
-    day_row: dict,
-) -> list[str]:
-    reasons = []
-    if bristol is not None and not is_bristol_safe(bristol):
-        if bristol < min(BRISTOL_SAFE_LEVELS):
-            reasons.append(f"Bristol {bristol} 低于安全区")
+def build_unsafe_interval_g_chart(rows: list[dict], end_date: str) -> dict:
+    unsafe_points = []
+    all_events = []
+    for index, item in enumerate(rows):
+        bristol = int(item["bristol_type"]) if item.get("bristol_type") is not None else None
+        occurred_at = parse_local_datetime(item.get("occurred_at"))
+        event = {
+            "index": index,
+            "id": item["id"],
+            "date": (item.get("occurred_at") or "")[:10],
+            "occurred_at": item.get("occurred_at"),
+            "occurred_datetime": occurred_at,
+            "bristol_type": bristol,
+            "is_safe": bristol is not None and is_bristol_safe(bristol),
+        }
+        all_events.append(event)
+        if bristol is not None and not is_bristol_safe(bristol):
+            unsafe_points.append(event)
+
+    points = []
+    previous_unsafe = None
+    for unsafe in unsafe_points:
+        if previous_unsafe is None:
+            days_since = None
+            safe_events_between = None
+            bowel_events_between = None
         else:
-            reasons.append(f"Bristol {bristol} 高于安全区")
-    if urgency is not None and urgency >= 3:
-        reasons.append(f"急迫感 {urgency}")
-    if (day_row.get("count") or 0) >= 3:
-        reasons.append(f"当天排便 {day_row['count']} 次")
-    return reasons
+            days_since = days_between(previous_unsafe, unsafe)
+            bowel_events_between = unsafe["index"] - previous_unsafe["index"] - 1
+            safe_events_between = sum(
+                1
+                for event in all_events[previous_unsafe["index"] + 1:unsafe["index"]]
+                if event["is_safe"]
+            )
+        points.append(
+            {
+                "date": unsafe["date"],
+                "occurred_at": unsafe["occurred_at"],
+                "bristol_type": unsafe["bristol_type"],
+                "days_since_previous_unsafe": days_since,
+                "safe_events_since_previous_unsafe": safe_events_between,
+                "bowel_events_since_previous_unsafe": bowel_events_between,
+            }
+        )
+        previous_unsafe = unsafe
 
+    latest_unsafe = unsafe_points[-1] if unsafe_points else None
+    current_safe_events = None
+    current_days = None
+    if latest_unsafe is not None:
+        current_safe_events = sum(
+            1
+            for event in all_events[latest_unsafe["index"] + 1:]
+            if event["is_safe"]
+        )
+        current_days = days_from_event_to_date(latest_unsafe, end_date)
+    elif all_events:
+        current_safe_events = sum(1 for event in all_events if event["is_safe"])
 
-def compact_meal_context(row: dict) -> dict:
+    interval_values = [
+        point["safe_events_since_previous_unsafe"]
+        for point in points
+        if point["safe_events_since_previous_unsafe"] is not None
+    ]
+
     return {
-        "id": row["id"],
-        "eaten_at": row.get("eaten_at"),
-        "meal_type": row.get("meal_type") or "未记录餐别",
-        "location": row.get("location") or "未记录地点",
-        "foods": row.get("foods") or "未记录食物",
-        "photo_path": row.get("photo_path"),
-        "notes": row.get("notes") or "",
+        "unsafe_count": len(unsafe_points),
+        "total_events": len(all_events),
+        "current_safe_events_after_last_unsafe": current_safe_events,
+        "current_days_after_last_unsafe": current_days,
+        "longest_safe_events_between_unsafe": max(interval_values) if interval_values else None,
+        "points": points,
     }
 
 
-def compact_medication_context(row: dict) -> dict:
-    quantity = row.get("quantity_value")
-    unit = row.get("quantity_unit") or row.get("default_unit") or ""
-    quantity_text = ""
-    if quantity not in (None, ""):
-        quantity_text = f"{quantity:g}{unit}" if isinstance(quantity, float) else f"{quantity}{unit}"
-    return {
-        "id": row["id"],
-        "taken_at": row.get("taken_at"),
-        "product_name": row.get("product_name") or "未登记药物",
-        "product_type": row.get("product_type") or "未分类",
-        "timing_relation": row.get("timing_relation") or "未记录时间关系",
-        "quantity_text": quantity_text,
-        "notes": row.get("notes") or "",
-    }
+def days_between(previous: dict, current: dict) -> int | None:
+    previous_at = previous.get("occurred_datetime")
+    current_at = current.get("occurred_datetime")
+    if previous_at is None or current_at is None:
+        return None
+    return (current_at.date() - previous_at.date()).days
 
 
-def build_anomaly_context_summary(
-    meals: list[dict],
-    medications: list[dict],
-) -> list[str]:
-    summary = [f"饮食 {len(meals)} 条", f"用药 {len(medications)} 条"]
-    photo_count = sum(1 for row in meals if row.get("photo_path"))
-    if photo_count:
-        summary.append(f"含照片 {photo_count} 张")
-    meal_locations = sorted({row.get("location") for row in meals if row.get("location")})
-    if meal_locations:
-        summary.append(f"饮食地点 {len(meal_locations)} 个")
-    medication_names = sorted(
-        {row.get("product_name") for row in medications if row.get("product_name")}
-    )
-    if medication_names:
-        summary.append(f"涉及药物 {len(medication_names)} 种")
-    return summary
+def days_from_event_to_date(event: dict, end_date: str) -> int | None:
+    occurred_at = event.get("occurred_datetime")
+    if occurred_at is None:
+        return None
+    try:
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return None
+    return (end - occurred_at.date()).days
 
 
 def increment_rank(rows: dict[str, dict], label: str) -> None:

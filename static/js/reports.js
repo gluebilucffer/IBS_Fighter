@@ -1,6 +1,6 @@
 import { requestJson } from "./api.js";
 import { state } from "./state.js";
-import { escapeHtml, formatDateTime, formatNumber, shortDate, shortText, today } from "./utils.js";
+import { escapeHtml, formatNumber, shortDate, shortText, today } from "./utils.js";
 
 
 export async function loadReport(endDate = state.date || today()) {
@@ -69,6 +69,8 @@ function renderBowelReport(report) {
     report.control_points || [],
     report.control_limits || { min: 1, max: 7, safe_min: 4, safe_max: 5 },
   );
+  renderSafetyPChart("#report-safety-p-chart", report.safety_p_chart || {});
+  renderUnsafeIntervalChart("#report-unsafe-interval-chart", report.unsafe_interval_g_chart || {});
 
   renderVerticalBarChart("#report-bristol-chart", report.bristol_distribution || [], {
     emptyText: "还没有布里斯托等级数据",
@@ -93,7 +95,6 @@ function renderBowelReport(report) {
 
   renderNoRecordDays(report.no_record_dates || [], report.range.days);
   renderAttentionDays(report.attention_days || []);
-  renderAnomalyReviewCards(report.anomaly_review_cards || []);
   renderInsights(report.insights || []);
 }
 
@@ -187,6 +188,181 @@ function renderBristolControlChart(selector, points, limits) {
     </div>
     ${svg}
     ${outlierList}
+  `;
+}
+
+
+function renderSafetyPChart(selector, chart) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+
+  const points = chart.points || [];
+  const dataPoints = points.filter((point) => point.safe_rate !== null && point.safe_rate !== undefined);
+  if (!dataPoints.length) {
+    container.innerHTML = '<div class="empty">这个周期还没有可计算安全率的排便记录</div>';
+    return;
+  }
+
+  const width = 720;
+  const height = 290;
+  const padding = { top: 22, right: 30, bottom: 36, left: 48 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const xFor = (index) => {
+    if (points.length <= 1) return padding.left + chartWidth / 2;
+    return padding.left + (index / (points.length - 1)) * chartWidth;
+  };
+  const yFor = (value) => {
+    const bounded = Math.min(100, Math.max(0, Number(value) || 0));
+    return padding.top + ((100 - bounded) / 100) * chartHeight;
+  };
+  const plottedPoints = points
+    .map((point, index) => ({
+      ...point,
+      x: xFor(index),
+      y: point.safe_rate === null || point.safe_rate === undefined ? null : yFor(point.safe_rate),
+    }))
+    .filter((point) => point.y !== null);
+  const path = plottedPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(" ");
+  const centerline = Number(chart.overall_safe_rate) || 0;
+  const yCenter = yFor(centerline);
+  const ticks = [100, 75, 50, 25, 0];
+  const flaggedPoints = plottedPoints.filter((point) => point.status !== "stable");
+  const recentPoints = plottedPoints.slice(-10);
+
+  const svg = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="安全率 p-chart">
+      ${ticks.map((tick) => {
+        const y = yFor(tick);
+        return `
+          <line class="spc-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+          <text class="control-axis-label" x="${padding.left - 12}" y="${y + 4}" text-anchor="end">${tick}%</text>
+        `;
+      }).join("")}
+      <line class="control-axis-line" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}"></line>
+      <line class="control-axis-line" x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}"></line>
+      <line class="spc-centerline" x1="${padding.left}" y1="${yCenter}" x2="${width - padding.right}" y2="${yCenter}"></line>
+      <text class="spc-center-label" x="${width - padding.right - 8}" y="${yCenter - 8}" text-anchor="end">中心线 ${escapeHtml(formatNumber(centerline))}%</text>
+      ${plottedPoints.map((point) => {
+        if (point.lcl === null || point.ucl === null || point.lcl === undefined || point.ucl === undefined) {
+          return "";
+        }
+        return `
+          <line class="spc-control-range" x1="${point.x}" y1="${yFor(point.ucl)}" x2="${point.x}" y2="${yFor(point.lcl)}"></line>
+        `;
+      }).join("")}
+      <path class="spc-value-line" d="${path}"></path>
+      ${plottedPoints.map((point) => {
+        const isFlagged = point.status !== "stable";
+        const statusText = point.status === "special_cause"
+          ? "超出控制线"
+          : point.status === "has_unsafe"
+            ? "含非安全值"
+            : "稳定";
+        return `
+          <g class="spc-point ${isFlagged ? "unsafe" : "safe"}">
+            <circle cx="${point.x}" cy="${point.y}" r="${isFlagged ? 7 : 5.5}"></circle>
+            <title>${escapeHtml(`${point.date} · 安全率 ${point.safe_rate}% · ${statusText}`)}</title>
+          </g>
+        `;
+      }).join("")}
+      <text class="control-axis-caption" x="${padding.left}" y="${height - 10}">${escapeHtml(shortDate(points[0].date))}</text>
+      <text class="control-axis-caption" x="${width - padding.right}" y="${height - 10}" text-anchor="end">${escapeHtml(shortDate(points[points.length - 1].date))}</text>
+    </svg>
+  `;
+
+  container.innerHTML = `
+    <div class="spc-legend">
+      <span><i class="legend-safe"></i>整体安全率 ${escapeHtml(formatNumber(chart.overall_safe_rate))}%</span>
+      <span>${escapeHtml(String(chart.safe_count || 0))}/${escapeHtml(String(chart.total_events || 0))} 次在 4-5</span>
+      <strong>异常点 ${flaggedPoints.length} 天</strong>
+    </div>
+    ${svg}
+    <div class="spc-point-list">
+      ${recentPoints.map((point) => `
+        <span class="spc-point-chip ${point.status === "stable" ? "safe" : "unsafe"}">
+          <b>${escapeHtml(shortDate(point.date))}</b>
+          ${escapeHtml(formatNumber(point.safe_rate))}%
+          <small>${escapeHtml(String(point.count))} 次</small>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+
+function renderUnsafeIntervalChart(selector, chart) {
+  const container = document.querySelector(selector);
+  if (!container) return;
+
+  const totalEvents = Number(chart.total_events) || 0;
+  if (!totalEvents) {
+    container.innerHTML = '<div class="empty">这个周期还没有排便记录</div>';
+    return;
+  }
+
+  const points = chart.points || [];
+  const intervalRows = points.filter((point) => point.safe_events_since_previous_unsafe !== null && point.safe_events_since_previous_unsafe !== undefined);
+  const currentSafeEvents = chart.current_safe_events_after_last_unsafe;
+  const currentDays = chart.current_days_after_last_unsafe;
+  const longestInterval = chart.longest_safe_events_between_unsafe;
+  const maxValue = Math.max(
+    ...intervalRows.map((point) => Number(point.safe_events_since_previous_unsafe) || 0),
+    Number(currentSafeEvents) || 0,
+    1,
+  );
+
+  const intervalList = intervalRows.length
+    ? intervalRows.slice(-10).map((point) => {
+      const safeEvents = Number(point.safe_events_since_previous_unsafe) || 0;
+      const bowelEvents = point.bowel_events_since_previous_unsafe ?? 0;
+      const days = point.days_since_previous_unsafe ?? "-";
+      const width = safeEvents > 0 ? Math.max(5, Math.round((safeEvents / maxValue) * 100)) : 2;
+      return `
+        <div class="interval-row">
+          <div class="interval-label">
+            <strong>${escapeHtml(shortDate(point.date))} · Bristol ${escapeHtml(String(point.bristol_type ?? "-"))}</strong>
+            <span>${escapeHtml(String(days))} 天 / 间隔 ${escapeHtml(String(bowelEvents))} 次排便</span>
+          </div>
+          <div class="interval-track" aria-hidden="true">
+            <span class="interval-fill" style="width: ${width}%"></span>
+          </div>
+          <div class="interval-value">${escapeHtml(String(safeEvents))} 次安全</div>
+        </div>
+      `;
+    }).join("")
+    : `<div class="empty">${points.length ? "这个周期只有 1 次非安全排便，还不能形成间隔" : "这个周期没有非安全排便"}</div>`;
+
+  const currentText = currentSafeEvents === null || currentSafeEvents === undefined
+    ? "未形成"
+    : `${currentSafeEvents} 次`;
+  const daysText = currentDays === null || currentDays === undefined
+    ? ""
+    : ` · ${currentDays} 天`;
+  const longestText = longestInterval === null || longestInterval === undefined
+    ? "未形成"
+    : `${longestInterval} 次`;
+
+  container.innerHTML = `
+    <div class="interval-summary">
+      <span>
+        <b>${escapeHtml(String(chart.unsafe_count || 0))}</b>
+        非安全排便
+      </span>
+      <span>
+        <b>${escapeHtml(currentText)}</b>
+        当前连续安全${escapeHtml(daysText)}
+      </span>
+      <span>
+        <b>${escapeHtml(longestText)}</b>
+        最长异常间隔
+      </span>
+    </div>
+    <div class="interval-list">
+      ${intervalList}
+    </div>
   `;
 }
 
@@ -545,103 +721,6 @@ function renderAttentionDays(rows) {
       `;
     })
     .join("");
-}
-
-
-function renderAnomalyReviewCards(cards) {
-  const container = document.querySelector("#report-anomaly-cards");
-  if (!container) return;
-  if (!cards.length) {
-    container.innerHTML = '<div class="empty">这个周期没有触发异常复盘卡</div>';
-    return;
-  }
-
-  container.innerHTML = cards
-    .slice(0, 8)
-    .map((card) => {
-      const context = card.context || {};
-      const meals = context.meals || [];
-      const medications = context.medications || [];
-      const summary = context.summary || [];
-      const prompts = card.monitoring_prompts || [];
-      return `
-        <article class="anomaly-card">
-          <div class="anomaly-card-header">
-            <span>${escapeHtml(formatDateTime(card.occurred_at))}</span>
-            <strong>Bristol ${escapeHtml(String(card.bristol_type ?? "-"))}</strong>
-          </div>
-          <div class="anomaly-card-reasons">
-            ${(card.reasons || []).map((reason) => `<b>${escapeHtml(reason)}</b>`).join("")}
-          </div>
-          <div class="anomaly-card-meta">
-            <span>${escapeHtml(card.location || "未记录地点")}</span>
-            <span>${escapeHtml(card.color || "未记录颜色")}</span>
-            ${card.urgency != null ? `<span>急迫 ${escapeHtml(String(card.urgency))}</span>` : ""}
-          </div>
-          ${card.notes ? `<p class="anomaly-card-notes">${escapeHtml(card.notes)}</p>` : ""}
-          <div class="anomaly-context-summary">
-            ${summary.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
-          </div>
-          <div class="anomaly-context-grid">
-            <section>
-              <h4>前 ${escapeHtml(String(card.context_window_hours || 48))} 小时饮食</h4>
-              ${renderAnomalyMeals(meals)}
-            </section>
-            <section>
-              <h4>前 ${escapeHtml(String(card.context_window_hours || 48))} 小时用药</h4>
-              ${renderAnomalyMedications(medications)}
-            </section>
-          </div>
-          <div class="anomaly-prompts">
-            ${prompts.map((prompt) => `<span>${escapeHtml(prompt)}</span>`).join("")}
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-}
-
-
-function renderAnomalyMeals(rows) {
-  if (!rows.length) {
-    return '<div class="mini-empty">没有饮食记录</div>';
-  }
-  return `
-    <div class="anomaly-mini-list">
-      ${rows.slice(0, 4).map((row) => `
-        <div class="anomaly-mini-item">
-          ${row.photo_path ? `<img src="${escapeHtml(row.photo_path)}" alt="饮食照片" />` : ""}
-          <span>
-            <b>${escapeHtml([formatDateTime(row.eaten_at), row.meal_type].filter(Boolean).join(" · "))}</b>
-            <small>${escapeHtml(shortText(row.foods || "未记录食物", 42))}</small>
-            <small>${escapeHtml(row.location || "未记录地点")}</small>
-          </span>
-        </div>
-      `).join("")}
-      ${rows.length > 4 ? `<div class="mini-more">+${rows.length - 4} 条饮食</div>` : ""}
-    </div>
-  `;
-}
-
-
-function renderAnomalyMedications(rows) {
-  if (!rows.length) {
-    return '<div class="mini-empty">没有用药记录</div>';
-  }
-  return `
-    <div class="anomaly-mini-list">
-      ${rows.slice(0, 5).map((row) => `
-        <div class="anomaly-mini-item">
-          <span>
-            <b>${escapeHtml([formatDateTime(row.taken_at), row.timing_relation].filter(Boolean).join(" · "))}</b>
-            <small>${escapeHtml([row.product_name, row.quantity_text].filter(Boolean).join(" · "))}</small>
-            <small>${escapeHtml(row.product_type || "未分类")}</small>
-          </span>
-        </div>
-      `).join("")}
-      ${rows.length > 5 ? `<div class="mini-more">+${rows.length - 5} 条用药</div>` : ""}
-    </div>
-  `;
 }
 
 
