@@ -137,9 +137,11 @@ python3 scripts/recompress_uploads.py
 
 ```text
 build command: pip install -r requirements.txt
-start command: gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT
+start command: gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT --timeout 120
 disk mount: /var/data
 ```
+
+`--timeout 120` 用于避免 AI 复盘请求超过 Gunicorn 默认 30 秒后被 Render 显示为 502。
 
 线上数据目录：
 

@@ -4,7 +4,7 @@
 
 - Runtime: Python
 - Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT`
+- Start command: `gunicorn ibs_fighter.wsgi:app --bind 0.0.0.0:$PORT --timeout 120`
 - Persistent disk mount: `/var/data`
 - Environment:
   - `IBS_FIGHTER_DATA_DIR=/var/data/data`
@@ -22,6 +22,7 @@
   - `OPENAI_DEFAULT_MODEL=gpt-5.4-mini`
   - `OPENAI_MEAL_MODEL=gpt-5.4-mini`
   - `OPENAI_REPORT_MODEL=gpt-5.4-mini`
+  - `GUNICORN_CMD_ARGS=--timeout 120` if the service start command cannot be edited directly
 
 Optional Google Drive backup environment:
 
