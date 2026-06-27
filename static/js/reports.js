@@ -9,7 +9,9 @@ export async function loadReport(endDate = state.date || today()) {
     `/api/report?module=${encodeURIComponent(state.reportModule)}&days=${encodeURIComponent(days)}&end_date=${encodeURIComponent(endDate)}`,
   );
   state.report = payload;
+  state.reportAiInsights = null;
   renderReport(payload);
+  clearReportAiInsights();
 }
 
 
@@ -25,6 +27,65 @@ function renderReport(report) {
     return;
   }
   renderBowelReport(report);
+}
+
+
+export function clearReportAiInsights() {
+  const container = document.querySelector("[data-ai-report-result]");
+  if (!container) return;
+  container.hidden = true;
+  container.innerHTML = "";
+}
+
+
+export function renderReportAiInsights(payload) {
+  const container = document.querySelector("[data-ai-report-result]");
+  if (!container) return;
+
+  const analysis = payload?.analysis || {};
+  const summary = analysis.summary || "AI 没有返回可用复盘摘要";
+  const stableSignals = analysis.stable_signals || [];
+  const attentionSignals = analysis.attention_signals || [];
+  const possibleCorrelations = analysis.possible_correlations || [];
+  const nextSuggestions = analysis.next_tracking_suggestions || [];
+  const confidence = analysis.confidence || "-";
+  const modelText = payload?.skipped_model
+    ? "本地规则"
+    : [payload?.provider, payload?.model].filter(Boolean).join(" · ");
+
+  container.hidden = false;
+  container.innerHTML = `
+    <article class="ai-report-card">
+      <div class="ai-report-heading">
+        <span>AI 复盘</span>
+        <strong>${escapeHtml(summary)}</strong>
+      </div>
+      <div class="ai-report-meta">
+        <span>置信度 ${escapeHtml(confidence)}</span>
+        ${modelText ? `<span>${escapeHtml(modelText)}</span>` : ""}
+      </div>
+      <div class="ai-report-grid">
+        ${renderAiSignalList("稳定信号", stableSignals, "暂无明确稳定信号")}
+        ${renderAiSignalList("需要留意", attentionSignals, "暂无需要额外留意的信号")}
+        ${renderAiSignalList("可能关联", possibleCorrelations, "记录不足，暂时不判断关联")}
+        ${renderAiSignalList("下次记录重点", nextSuggestions, "继续保持当前记录方式")}
+      </div>
+      <p>${escapeHtml(analysis.disclaimer || "仅用于个人记录复盘，不替代医生建议。")}</p>
+    </article>
+  `;
+}
+
+
+function renderAiSignalList(title, rows, emptyText) {
+  const items = rows.length ? rows : [emptyText];
+  return `
+    <section>
+      <h3>${escapeHtml(title)}</h3>
+      <ul>
+        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </section>
+  `;
 }
 
 

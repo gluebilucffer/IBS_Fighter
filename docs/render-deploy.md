@@ -18,6 +18,10 @@
   - `GOOGLE_CLIENT_ID=<Google OAuth web client id>`
   - `GOOGLE_CLIENT_SECRET=<Google OAuth web client secret>`
   - `BACKUP_ADMIN_TOKEN=<generated secret>`
+  - `OPENAI_API_KEY=<OpenAI API key, optional>`
+  - `OPENAI_DEFAULT_MODEL=gpt-5.4-mini`
+  - `OPENAI_MEAL_MODEL=gpt-5.4-mini`
+  - `OPENAI_REPORT_MODEL=gpt-5.4-mini`
 
 Optional Google Drive backup environment:
 
@@ -125,6 +129,16 @@ manifest.json
 The app creates the database copy through SQLite's backup API before zipping, so
 the uploaded database is a consistent snapshot instead of a raw copy of a live
 SQLite file.
+
+## AI analysis
+
+AI features are optional. When `OPENAI_API_KEY` is unset, the meal recognition
+panel and report `AI 复盘` button are hidden and the normal tracker still works.
+
+The first implementation uses OpenAI for both text and image inputs. It stores
+AI audit rows in SQLite but does not store image base64, API keys, OAuth
+secrets, or full prompts. Report insights are for personal tracking review only
+and must not be treated as diagnosis or treatment advice.
 
 ## Local backup import
 

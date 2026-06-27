@@ -166,7 +166,7 @@ def delete_record(table: str, record_id: int) -> None:
             raise LookupError("记录不存在")
 
 
-def build_day_payload(selected_date: str) -> dict:
+def build_day_payload(selected_date: str, *, user_email: str = "") -> dict:
     records = {table: fetch_records(table, selected_date) for table in TRACKING_TABLES}
     bristol_values = [
         item["bristol_type"]
@@ -205,6 +205,7 @@ def build_day_payload(selected_date: str) -> dict:
         "checklist": build_daily_checklist(records, exercise_minutes),
         "records": records,
         "medication_products": fetch_records("medication_products"),
+        "meal_templates": fetch_meal_templates(user_email=user_email),
         "meal_locations": shortcuts["meal_locations"],
         "shortcuts": shortcuts,
     }
@@ -306,3 +307,163 @@ def fetch_meal_text_shortcuts(limit: int = 8) -> list[dict]:
             (limit,),
         ).fetchall()
     return [row_to_dict(row) for row in rows]
+
+
+def fetch_meal_templates(*, user_email: str = "", limit: int = 24) -> list[dict]:
+    where_sql = ""
+    params: list[str | int] = []
+    if user_email:
+        where_sql = "WHERE user_email IS NULL OR user_email = ?"
+        params.append(user_email)
+    params.append(limit)
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                name,
+                meal_type,
+                location,
+                foods,
+                symptoms_after,
+                notes,
+                source_ai_run_id,
+                user_email,
+                used_count,
+                last_used_at,
+                created_at,
+                updated_at
+            FROM meal_templates
+            {where_sql}
+            ORDER BY used_count DESC, COALESCE(last_used_at, created_at) DESC, id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def create_meal_template(payload: dict, *, user_email: str = "") -> dict:
+    foods = clean_optional_text(payload.get("foods"))
+    if not foods:
+        raise ValueError("常用餐必须有文字描述")
+
+    source_ai_run_id = payload.get("source_ai_run_id")
+    if source_ai_run_id in {"", None}:
+        source_ai_run_id = None
+    else:
+        try:
+            source_ai_run_id = int(source_ai_run_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("source_ai_run_id 必须是整数") from exc
+
+    data = {
+        "name": clean_optional_text(payload.get("name")) or default_meal_template_name(foods),
+        "meal_type": clean_optional_text(payload.get("meal_type")),
+        "location": clean_optional_text(payload.get("location")),
+        "foods": foods,
+        "symptoms_after": clean_optional_text(payload.get("symptoms_after")),
+        "notes": clean_optional_text(payload.get("notes")),
+        "source_ai_run_id": source_ai_run_id,
+        "user_email": user_email or None,
+    }
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO meal_templates (
+                name, meal_type, location, foods, symptoms_after, notes,
+                source_ai_run_id, user_email
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["name"],
+                data["meal_type"],
+                data["location"],
+                data["foods"],
+                data["symptoms_after"],
+                data["notes"],
+                data["source_ai_run_id"],
+                data["user_email"],
+            ),
+        )
+        row = fetch_meal_template_by_id(conn, int(cursor.lastrowid), user_email=user_email)
+    return row_to_dict(row)
+
+
+def mark_meal_template_used(template_id: int, *, user_email: str = "") -> dict:
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE meal_templates
+            SET used_count = used_count + 1,
+                last_used_at = datetime('now')
+            WHERE id = ?
+              AND (? = '' OR user_email IS NULL OR user_email = ?)
+            """,
+            (template_id, user_email, user_email),
+        )
+        if cursor.rowcount == 0:
+            raise LookupError("常用餐不存在")
+        row = fetch_meal_template_by_id(conn, template_id, user_email=user_email)
+    return row_to_dict(row)
+
+
+def delete_meal_template(template_id: int, *, user_email: str = "") -> None:
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM meal_templates
+            WHERE id = ?
+              AND (? = '' OR user_email IS NULL OR user_email = ?)
+            """,
+            (template_id, user_email, user_email),
+        )
+        if cursor.rowcount == 0:
+            raise LookupError("常用餐不存在")
+
+
+def fetch_meal_template_by_id(
+    conn: sqlite3.Connection,
+    template_id: int,
+    *,
+    user_email: str = "",
+) -> sqlite3.Row:
+    row = conn.execute(
+        """
+        SELECT
+            id,
+            name,
+            meal_type,
+            location,
+            foods,
+            symptoms_after,
+            notes,
+            source_ai_run_id,
+            user_email,
+            used_count,
+            last_used_at,
+            created_at,
+            updated_at
+        FROM meal_templates
+        WHERE id = ?
+          AND (? = '' OR user_email IS NULL OR user_email = ?)
+        """,
+        (template_id, user_email, user_email),
+    ).fetchone()
+    if not row:
+        raise LookupError("常用餐不存在")
+    return row
+
+
+def clean_optional_text(value: object) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def default_meal_template_name(foods: str) -> str:
+    compact = " ".join(foods.split())
+    if len(compact) <= 18:
+        return compact
+    return f"{compact[:18]}..."

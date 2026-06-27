@@ -254,6 +254,13 @@
                     </button>
                     <div class="ai-meal-result" data-ai-meal-result hidden></div>
                   </div>
+                  <div class="shortcut-block meal-template-block">
+                    <div class="shortcut-heading">
+                      <span>常用餐</span>
+                      <button class="ghost" type="button" data-meal-template-save>保存当前为常用餐</button>
+                    </div>
+                    <div class="meal-template-list" data-meal-template-list></div>
+                  </div>
                   <div class="shortcut-block">
                     <span>最近饮食</span>
                     <div class="shortcut-list text-shortcuts" data-shortcut-list="meal_texts"></div>
@@ -439,8 +446,12 @@
                   <button class="active" type="button" data-report-days="7">7 天</button>
                   <button type="button" data-report-days="30">30 天</button>
                 </div>
+                <button class="ghost ai-report-button" type="button" data-ai-report-insights hidden>
+                  AI 复盘
+                </button>
               </div>
             </div>
+            <div class="ai-report-result" data-ai-report-result hidden></div>
 
             <section class="report-module active" data-report-module-panel="bowel">
               <section class="report-summary-grid" aria-label="排便周期概览">

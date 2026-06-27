@@ -35,11 +35,21 @@ from .config import (
     STATIC_DIR,
     UPLOADS_DIR,
 )
-from .crud import build_day_payload, delete_record, fetch_records, insert_record, update_record
+from .crud import (
+    build_day_payload,
+    create_meal_template,
+    delete_meal_template,
+    delete_record,
+    fetch_meal_templates,
+    fetch_records,
+    insert_record,
+    mark_meal_template_used,
+    update_record,
+)
 from .db import get_connection, init_database
 from .drive_backup import backup_to_google_drive, drive_backup_status, store_drive_oauth_token
 from .models import TABLES
-from .openai_meal_analyzer import analyze_meal
+from .ai_analysis import analyze_meal, analyze_report_insights, mark_ai_run_adopted
 from .reports import build_report
 from .uploads import recompress_uploads_directory
 
@@ -173,7 +183,9 @@ def register_routes(app: Flask) -> None:
             {
                 "user": user,
                 "csrf_token": ensure_csrf_token(),
+                "ai_enabled": bool(OPENAI_API_KEY),
                 "ai_meal_enabled": bool(OPENAI_API_KEY),
+                "ai_report_enabled": bool(OPENAI_API_KEY),
                 "drive_backup": drive_backup_status(),
             }
         )
@@ -189,7 +201,7 @@ def register_routes(app: Flask) -> None:
     @app.get("/api/day")
     def api_day() -> Response:
         selected_date = request.args.get("date", date.today().isoformat())
-        return jsonify(build_day_payload(selected_date))
+        return jsonify(build_day_payload(selected_date, user_email=current_user_email()))
 
     @app.get("/api/report")
     def api_report() -> Response:
@@ -205,11 +217,76 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/ai/meals/analyze", methods=["POST"])
     def api_ai_meals_analyze() -> Response:
         try:
-            return jsonify(analyze_meal(read_json_body()))
+            return jsonify(
+                analyze_meal(
+                    read_json_body(),
+                    user_email=current_user_email(),
+                )
+            )
         except ValueError as exc:
             return json_error(str(exc), HTTPStatus.BAD_REQUEST)
         except RuntimeError as exc:
             return json_error(str(exc), HTTPStatus.BAD_GATEWAY)
+
+    @app.post("/api/ai/reports/insights")
+    def api_ai_report_insights() -> Response:
+        try:
+            payload = read_json_body()
+            module = str(payload.get("module") or "bowel")
+            end_date_text = payload.get("end_date") or date.today().isoformat()
+            days = int(payload.get("days") or 7)
+            with get_connection() as conn:
+                return jsonify(
+                    analyze_report_insights(
+                        conn,
+                        module=module,
+                        end_date_text=end_date_text,
+                        days=days,
+                        user_email=current_user_email(),
+                    )
+                )
+        except ValueError as exc:
+            return json_error(str(exc), HTTPStatus.BAD_REQUEST)
+        except RuntimeError as exc:
+            return json_error(str(exc), HTTPStatus.BAD_GATEWAY)
+
+    @app.post("/api/ai/runs/<int:run_id>/adopt")
+    def api_ai_run_adopt(run_id: int) -> Response:
+        try:
+            return jsonify(mark_ai_run_adopted(run_id, user_email=current_user_email()))
+        except PermissionError as exc:
+            return json_error(str(exc), HTTPStatus.FORBIDDEN)
+        except LookupError as exc:
+            return json_error(str(exc), HTTPStatus.NOT_FOUND)
+
+    @app.get("/api/meal-templates")
+    def api_meal_templates() -> Response:
+        return jsonify({"items": fetch_meal_templates(user_email=current_user_email())})
+
+    @app.post("/api/meal-templates")
+    def api_create_meal_template() -> Response:
+        try:
+            item = create_meal_template(read_json_body(), user_email=current_user_email())
+            return jsonify({"item": item}), HTTPStatus.CREATED
+        except (sqlite3.IntegrityError, ValueError) as exc:
+            return json_error(str(exc), HTTPStatus.BAD_REQUEST)
+
+    @app.post("/api/meal-templates/<int:template_id>/use")
+    def api_use_meal_template(template_id: int) -> Response:
+        try:
+            return jsonify(
+                {"item": mark_meal_template_used(template_id, user_email=current_user_email())}
+            )
+        except LookupError as exc:
+            return json_error(str(exc), HTTPStatus.NOT_FOUND)
+
+    @app.delete("/api/meal-templates/<int:template_id>")
+    def api_delete_meal_template(template_id: int) -> Response:
+        try:
+            delete_meal_template(template_id, user_email=current_user_email())
+            return jsonify({"ok": True})
+        except LookupError as exc:
+            return json_error(str(exc), HTTPStatus.NOT_FOUND)
 
     @app.post("/api/admin/backups/drive")
     def api_drive_backup() -> Response:
@@ -306,6 +383,11 @@ def backup_token_is_valid() -> bool:
     if provided.startswith("Bearer "):
         provided = provided.removeprefix("Bearer ").strip()
     return bool(provided and hmac.compare_digest(provided, BACKUP_ADMIN_TOKEN))
+
+
+def current_user_email() -> str:
+    user = current_user() or {}
+    return str(user.get("email") or "")
 
 
 def read_json_body() -> dict:

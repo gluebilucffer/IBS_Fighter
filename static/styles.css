@@ -700,10 +700,30 @@ textarea:focus {
   gap: 7px;
 }
 
+.shortcut-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .shortcut-block > span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 690;
+}
+
+.shortcut-heading > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 690;
+}
+
+.shortcut-heading button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .shortcut-list {
@@ -744,6 +764,77 @@ textarea:focus {
   font-size: 12px;
 }
 
+.meal-template-block {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdfa;
+}
+
+.meal-template-list {
+  display: grid;
+  gap: 8px;
+}
+
+.meal-template-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--primary-soft);
+  border-radius: 8px;
+  background: var(--surface-tint);
+}
+
+.meal-template-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.meal-template-copy strong,
+.meal-template-copy p,
+.meal-template-copy small {
+  overflow-wrap: anywhere;
+}
+
+.meal-template-copy strong {
+  color: var(--primary-dark);
+  font-size: 14px;
+}
+
+.meal-template-copy small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.meal-template-copy p {
+  margin: 0;
+  color: #35423e;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.meal-template-actions,
+.ai-meal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.meal-template-actions {
+  justify-content: flex-end;
+}
+
+.meal-template-actions button,
+.ai-meal-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
 .ai-meal-panel {
   display: grid;
   gap: 10px;
@@ -763,7 +854,7 @@ textarea:focus {
   gap: 12px;
   padding: 14px;
   border: 1px solid var(--primary-soft);
-  border-radius: 10px;
+  border-radius: 8px;
   background:
     linear-gradient(135deg, rgb(15 95 86 / 8%), transparent 52%),
     #fffdfa;
@@ -805,6 +896,106 @@ textarea:focus {
   color: var(--ink);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.ai-report-button {
+  min-height: 42px;
+  padding-inline: 14px;
+}
+
+.ai-report-button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.ai-report-result {
+  min-width: 0;
+}
+
+.ai-report-card {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--primary-soft);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(15 95 86 / 8%), transparent 50%),
+    #fffdfa;
+}
+
+.ai-report-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-report-heading span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.ai-report-heading strong {
+  color: var(--primary-dark);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.ai-report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-report-meta span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffdfa;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.ai-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-report-grid section {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdfa;
+}
+
+.ai-report-grid h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.ai-report-grid ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: #35423e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ai-report-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .record-list {
@@ -1659,7 +1850,8 @@ textarea:focus {
   .today-hero,
   .record-editor,
   .medication-library,
-  .report-grid {
+  .report-grid,
+  .ai-report-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1847,6 +2039,10 @@ textarea:focus {
     text-align: center;
   }
 
+  .ai-report-button {
+    width: 100%;
+  }
+
   .bristol-scale {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -1863,6 +2059,25 @@ textarea:focus {
   .medication-option input[type="text"],
   .fixed-unit {
     grid-column: 2;
+  }
+
+  .shortcut-heading,
+  .meal-template-card {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .shortcut-heading {
+    display: grid;
+  }
+
+  .shortcut-heading button {
+    width: 100%;
+  }
+
+  .meal-template-actions button,
+  .ai-meal-actions button {
+    flex: 1 1 120px;
   }
 
   .fixed-unit {

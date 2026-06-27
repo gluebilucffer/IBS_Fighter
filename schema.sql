@@ -30,6 +30,22 @@ CREATE TABLE IF NOT EXISTS meals (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS meal_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    meal_type TEXT,
+    location TEXT,
+    foods TEXT NOT NULL,
+    symptoms_after TEXT,
+    notes TEXT,
+    source_ai_run_id INTEGER REFERENCES ai_analysis_runs(id) ON DELETE SET NULL,
+    user_email TEXT,
+    used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
+    last_used_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS medication_products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_name TEXT NOT NULL,
@@ -90,13 +106,35 @@ CREATE TABLE IF NOT EXISTS hemorrhoid_events (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS ai_analysis_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feature_type TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    input_summary_hash TEXT NOT NULL,
+    output_json TEXT,
+    adopted INTEGER NOT NULL DEFAULT 0 CHECK (adopted IN (0, 1)),
+    error TEXT,
+    user_email TEXT,
+    related_table TEXT,
+    related_record_id INTEGER,
+    report_module TEXT,
+    report_start_date TEXT,
+    report_end_date TEXT,
+    report_days INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_bowel_movements_occurred_at ON bowel_movements (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_meals_eaten_at ON meals (eaten_at);
+CREATE INDEX IF NOT EXISTS idx_meal_templates_usage ON meal_templates (used_count, last_used_at);
 CREATE INDEX IF NOT EXISTS idx_medication_products_name ON medication_products (product_name);
 CREATE INDEX IF NOT EXISTS idx_medications_taken_at ON medications (taken_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_started_at ON exercises (started_at);
 CREATE INDEX IF NOT EXISTS idx_body_weights_measured_at ON body_weights (measured_at);
 CREATE INDEX IF NOT EXISTS idx_hemorrhoid_events_occurred_at ON hemorrhoid_events (occurred_at);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_runs_feature_created ON ai_analysis_runs (feature_type, created_at);
 
 CREATE TRIGGER IF NOT EXISTS trg_bowel_movements_updated_at
 AFTER UPDATE ON bowel_movements
@@ -110,6 +148,13 @@ AFTER UPDATE ON meals
 FOR EACH ROW
 BEGIN
     UPDATE meals SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_meal_templates_updated_at
+AFTER UPDATE ON meal_templates
+FOR EACH ROW
+BEGIN
+    UPDATE meal_templates SET updated_at = datetime('now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_medications_updated_at
@@ -145,4 +190,11 @@ AFTER UPDATE ON hemorrhoid_events
 FOR EACH ROW
 BEGIN
     UPDATE hemorrhoid_events SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_ai_analysis_runs_updated_at
+AFTER UPDATE ON ai_analysis_runs
+FOR EACH ROW
+BEGIN
+    UPDATE ai_analysis_runs SET updated_at = datetime('now') WHERE id = OLD.id;
 END;

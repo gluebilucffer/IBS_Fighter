@@ -14,11 +14,12 @@ import {
   populateMealLocations,
   populateMedicationPickers,
   populateShortcuts,
+  renderMealTemplates,
   renderChecklist,
   renderList,
   renderSummary,
 } from "./records.js";
-import { loadReport } from "./reports.js";
+import { loadReport, renderReportAiInsights } from "./reports.js";
 import { state } from "./state.js";
 import { browserTimeZone, escapeHtml, showToast, today } from "./utils.js";
 
@@ -37,6 +38,7 @@ async function loadAuthState() {
   const payload = await requestJson("/api/auth/me");
   state.user = payload.user || null;
   state.aiMealEnabled = Boolean(payload.ai_meal_enabled);
+  state.aiReportEnabled = Boolean(payload.ai_report_enabled ?? payload.ai_enabled);
   state.driveBackup = payload.drive_backup || null;
   state.clientTimezone = browserTimeZone();
   setCsrfToken(payload.csrf_token || "");
@@ -57,6 +59,9 @@ function renderAuthState() {
 
   document.querySelectorAll("[data-ai-meal-panel]").forEach((panel) => {
     panel.hidden = !state.aiMealEnabled;
+  });
+  document.querySelectorAll("[data-ai-report-insights]").forEach((button) => {
+    button.hidden = !state.aiReportEnabled;
   });
 
   renderDriveBackupState();
@@ -105,6 +110,7 @@ async function loadDay() {
   state.records = payload.records;
   state.medicationProducts = payload.medication_products || [];
   state.mealLocations = payload.meal_locations || [];
+  state.mealTemplates = payload.meal_templates || [];
   state.shortcuts = payload.shortcuts || {};
   state.checklist = payload.checklist || [];
   renderSummary(payload.summary);
@@ -181,6 +187,10 @@ document.addEventListener("click", async (event) => {
   const shortcutButton = event.target.closest("[data-shortcut-table]");
   const aiMealAnalyzeButton = event.target.closest("[data-ai-meal-analyze]");
   const aiMealApplyButton = event.target.closest("[data-ai-meal-apply]");
+  const mealTemplateSaveButton = event.target.closest("[data-meal-template-save]");
+  const mealTemplateUseButton = event.target.closest("[data-meal-template-use]");
+  const mealTemplateDeleteButton = event.target.closest("[data-meal-template-delete]");
+  const aiReportInsightsButton = event.target.closest("[data-ai-report-insights]");
   const reportModuleButton = event.target.closest("[data-report-module]");
   const reportRangeButton = event.target.closest("[data-report-days]");
   const driveBackupButton = event.target.closest("[data-drive-backup]");
@@ -218,7 +228,23 @@ document.addEventListener("click", async (event) => {
   }
 
   if (aiMealApplyButton) {
-    applyMealAnalysis(aiMealApplyButton);
+    applyMealAnalysis(aiMealApplyButton).catch((error) => showToast(error.message));
+  }
+
+  if (mealTemplateSaveButton) {
+    saveMealTemplate(mealTemplateSaveButton).catch((error) => showToast(error.message));
+  }
+
+  if (mealTemplateUseButton) {
+    useMealTemplate(mealTemplateUseButton).catch((error) => showToast(error.message));
+  }
+
+  if (mealTemplateDeleteButton) {
+    deleteMealTemplate(mealTemplateDeleteButton).catch((error) => showToast(error.message));
+  }
+
+  if (aiReportInsightsButton) {
+    analyzeReport(aiReportInsightsButton).catch((error) => showToast(error.message));
   }
 
   if (reportModuleButton) {
@@ -301,7 +327,7 @@ async function analyzeMeal(button) {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    renderMealAnalysis(response.analysis || {});
+    renderMealAnalysis(response.analysis || {}, response.analysis_run_id);
     showToast("饮食识别完成，请检查后应用");
   } finally {
     button.disabled = false;
@@ -347,7 +373,7 @@ async function refreshDriveBackupStatus() {
 }
 
 
-function renderMealAnalysis(analysis) {
+function renderMealAnalysis(analysis, runId = "") {
   const resultBox = document.querySelector("[data-ai-meal-result]");
   if (!resultBox) return;
   const visibleFoods = analysis.visible_foods || [];
@@ -367,19 +393,25 @@ function renderMealAnalysis(analysis) {
         <div><dt>置信度</dt><dd>${escapeHtml(analysis.confidence || "-")}</dd></div>
         <div><dt>检查提示</dt><dd>${escapeHtml(analysis.review_notes || "请人工确认。")}</dd></div>
       </dl>
-      <button type="button" data-ai-meal-apply data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
-        应用到文字描述
-      </button>
+      <div class="ai-meal-actions">
+        <button type="button" data-ai-meal-apply data-run-id="${escapeHtml(String(runId || ""))}" data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
+          应用到文字描述
+        </button>
+        <button class="ghost" type="button" data-meal-template-save data-run-id="${escapeHtml(String(runId || ""))}" data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
+          保存为常用餐
+        </button>
+      </div>
     </div>
   `;
 }
 
 
-function applyMealAnalysis(button) {
+async function applyMealAnalysis(button) {
   const form = document.querySelector('[data-form="meals"]');
   if (!form) return;
   const foods = button.dataset.foods || "";
   const mealType = button.dataset.mealType || "";
+  const runId = button.dataset.runId || "";
   const foodsControl = getFormControl(form, "foods");
   if (foodsControl && foods) {
     foodsControl.value = foods;
@@ -390,5 +422,152 @@ function applyMealAnalysis(button) {
     );
     if (mealTypeControl) mealTypeControl.checked = true;
   }
+  if (runId) {
+    await requestJson(`/api/ai/runs/${encodeURIComponent(runId)}/adopt`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
   showToast("已应用识别结果，请检查后保存");
+}
+
+
+async function saveMealTemplate(button) {
+  const form = document.querySelector('[data-form="meals"]');
+  if (!form) return;
+
+  const payload = mealTemplatePayloadFromForm(button);
+  button.disabled = true;
+  const originalText = button.textContent;
+  button.textContent = "保存中...";
+  try {
+    const response = await requestJson("/api/meal-templates", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    await refreshMealTemplates();
+    const runId = button.dataset.runId || "";
+    if (runId) {
+      await requestJson(`/api/ai/runs/${encodeURIComponent(runId)}/adopt`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    }
+    showToast(`已保存常用餐：${response.item?.name || payload.foods}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+
+function mealTemplatePayloadFromForm(button) {
+  const form = document.querySelector('[data-form="meals"]');
+  const foods = (button.dataset.foods || getFormControl(form, "foods")?.value || "").trim();
+  if (!foods) {
+    throw new Error("请先填写或识别饮食描述");
+  }
+  const mealType = button.dataset.mealType || getCheckedValue(form, "meal_type");
+  const runId = button.dataset.runId || "";
+  return {
+    foods,
+    meal_type: mealType && mealType !== "不确定" ? mealType : null,
+    location: getFormControl(form, "location")?.value.trim() || null,
+    symptoms_after: getFormControl(form, "symptoms_after")?.value.trim() || null,
+    notes: getFormControl(form, "notes")?.value.trim() || null,
+    source_ai_run_id: runId || null,
+  };
+}
+
+
+async function useMealTemplate(button) {
+  const id = Number(button.dataset.id);
+  const response = await requestJson(`/api/meal-templates/${encodeURIComponent(id)}/use`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  applyMealTemplate(response.item || state.mealTemplates.find((item) => Number(item.id) === id));
+  await refreshMealTemplates();
+  showToast("已复刻常用餐，请检查时间后保存");
+}
+
+
+function applyMealTemplate(template) {
+  const form = document.querySelector('[data-form="meals"]');
+  if (!form || !template) return;
+  const idControl = getFormControl(form, "id");
+  if (idControl) idControl.value = "";
+  setControlValue(form, "foods", template.foods || "");
+  setControlValue(form, "location", template.location || "");
+  setControlValue(form, "symptoms_after", template.symptoms_after || "无明显反应");
+  setControlValue(form, "notes", template.notes || "");
+  if (template.meal_type) {
+    const mealTypeControl = [...form.querySelectorAll('[name="meal_type"]')].find(
+      (control) => control.value === template.meal_type,
+    );
+    if (mealTypeControl) mealTypeControl.checked = true;
+  }
+  form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+
+async function deleteMealTemplate(button) {
+  const id = Number(button.dataset.id);
+  const confirmed = window.confirm("确定删除这个常用餐模板吗？历史饮食记录不会删除。");
+  if (!confirmed) return;
+  await requestJson(`/api/meal-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await refreshMealTemplates();
+  showToast("常用餐已删除");
+}
+
+
+async function refreshMealTemplates() {
+  const response = await requestJson("/api/meal-templates");
+  state.mealTemplates = response.items || [];
+  renderMealTemplates(state.mealTemplates);
+}
+
+
+function setControlValue(form, name, value) {
+  const control = getFormControl(form, name);
+  if (control) control.value = value;
+}
+
+
+function getCheckedValue(form, name) {
+  return [...form.querySelectorAll(`[name="${name}"]`)].find((control) => control.checked)?.value || "";
+}
+
+
+async function analyzeReport(button) {
+  const report = state.report;
+  if (!report) {
+    throw new Error("报表还没有加载完成");
+  }
+
+  const resultBox = document.querySelector("[data-ai-report-result]");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "复盘中...";
+  if (resultBox) {
+    resultBox.hidden = false;
+    resultBox.innerHTML = '<div class="empty">正在调用 AI 复盘当前报表...</div>';
+  }
+
+  try {
+    const payload = await requestJson("/api/ai/reports/insights", {
+      method: "POST",
+      body: JSON.stringify({
+        module: report.module,
+        days: report.range?.requested_days ?? report.range?.days ?? state.reportDays,
+        end_date: report.range?.end_date ?? state.date ?? today(),
+      }),
+    });
+    state.reportAiInsights = payload;
+    renderReportAiInsights(payload);
+    showToast("AI 复盘完成，请人工判断");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
 }
