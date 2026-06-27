@@ -817,6 +817,16 @@ textarea:focus {
   line-height: 1.45;
 }
 
+.meal-template-copy .meal-template-location {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.meal-template-copy .meal-template-food {
+  color: #24332f;
+}
+
 .meal-template-actions,
 .ai-meal-actions {
   display: flex;

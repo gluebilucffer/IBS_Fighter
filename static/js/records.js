@@ -148,7 +148,7 @@ export function renderMealTemplates(items = []) {
   if (!items.length) {
     const empty = document.createElement("small");
     empty.className = "shortcut-empty";
-    empty.textContent = "暂无常用餐";
+    empty.textContent = "暂无常用食物";
     container.append(empty);
     return;
   }
@@ -156,17 +156,18 @@ export function renderMealTemplates(items = []) {
   items.forEach((item) => {
     const card = document.createElement("article");
     card.className = "meal-template-card";
-    const meta = [item.meal_type, item.location, item.used_count ? `已用 ${item.used_count} 次` : ""]
+    const meta = [item.meal_type, item.used_count ? `已用 ${item.used_count} 次` : ""]
       .filter(Boolean)
       .join(" · ");
     card.innerHTML = `
       <div class="meal-template-copy">
-        <strong>${escapeHtml(item.name || "常用餐")}</strong>
-        <small>${escapeHtml(meta || "点击复刻到表单")}</small>
-        <p>${escapeHtml(item.foods || "")}</p>
+        <strong>${escapeHtml(item.name || "常用食物")}</strong>
+        <small>${escapeHtml(meta || "点击添加到文字描述")}</small>
+        <p class="meal-template-location">${escapeHtml(item.location || "地点未设置")}</p>
+        <p class="meal-template-food">${escapeHtml(item.foods || "")}</p>
       </div>
       <div class="meal-template-actions">
-        <button type="button" data-meal-template-use data-id="${item.id}">复刻</button>
+        <button type="button" data-meal-template-use data-id="${item.id}">添加</button>
         <button class="danger" type="button" data-meal-template-delete data-id="${item.id}">删除</button>
       </div>
     `;

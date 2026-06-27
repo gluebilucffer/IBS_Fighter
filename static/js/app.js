@@ -398,7 +398,7 @@ function renderMealAnalysis(analysis, runId = "") {
           应用到文字描述
         </button>
         <button class="ghost" type="button" data-meal-template-save data-run-id="${escapeHtml(String(runId || ""))}" data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
-          保存为常用餐
+          保存为常用食物
         </button>
       </div>
     </div>
@@ -453,7 +453,7 @@ async function saveMealTemplate(button) {
         body: JSON.stringify({}),
       });
     }
-    showToast(`已保存常用餐：${response.item?.name || payload.foods}`);
+    showToast(`已保存常用食物：${response.item?.name || payload.foods}`);
   } finally {
     button.disabled = false;
     button.textContent = originalText;
@@ -486,38 +486,30 @@ async function useMealTemplate(button) {
     method: "POST",
     body: JSON.stringify({}),
   });
-  applyMealTemplate(response.item || state.mealTemplates.find((item) => Number(item.id) === id));
+  appendMealTemplate(response.item || state.mealTemplates.find((item) => Number(item.id) === id));
   await refreshMealTemplates();
-  showToast("已复刻常用餐，请检查时间后保存");
+  showToast("已添加常用食物，请检查后保存");
 }
 
 
-function applyMealTemplate(template) {
+function appendMealTemplate(template) {
   const form = document.querySelector('[data-form="meals"]');
   if (!form || !template) return;
   const idControl = getFormControl(form, "id");
   if (idControl) idControl.value = "";
-  setControlValue(form, "foods", template.foods || "");
-  setControlValue(form, "location", template.location || "");
-  setControlValue(form, "symptoms_after", template.symptoms_after || "无明显反应");
-  setControlValue(form, "notes", template.notes || "");
-  if (template.meal_type) {
-    const mealTypeControl = [...form.querySelectorAll('[name="meal_type"]')].find(
-      (control) => control.value === template.meal_type,
-    );
-    if (mealTypeControl) mealTypeControl.checked = true;
-  }
+  appendControlLine(form, "foods", template.foods || "");
+  fillControlIfEmpty(form, "location", template.location || "");
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 
 async function deleteMealTemplate(button) {
   const id = Number(button.dataset.id);
-  const confirmed = window.confirm("确定删除这个常用餐模板吗？历史饮食记录不会删除。");
+  const confirmed = window.confirm("确定删除这个常用食物模板吗？历史饮食记录不会删除。");
   if (!confirmed) return;
   await requestJson(`/api/meal-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
   await refreshMealTemplates();
-  showToast("常用餐已删除");
+  showToast("常用食物已删除");
 }
 
 
@@ -528,9 +520,20 @@ async function refreshMealTemplates() {
 }
 
 
-function setControlValue(form, name, value) {
+function fillControlIfEmpty(form, name, value) {
   const control = getFormControl(form, name);
-  if (control) control.value = value;
+  if (control && !control.value.trim() && value) {
+    control.value = value;
+  }
+}
+
+
+function appendControlLine(form, name, value) {
+  const control = getFormControl(form, name);
+  const text = String(value || "").trim();
+  if (!control || !text) return;
+  const current = control.value.trim();
+  control.value = current ? `${current}\n${text}` : text;
 }
 
 

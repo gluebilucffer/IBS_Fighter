@@ -346,7 +346,7 @@ def fetch_meal_templates(*, user_email: str = "", limit: int = 24) -> list[dict]
 def create_meal_template(payload: dict, *, user_email: str = "") -> dict:
     foods = clean_optional_text(payload.get("foods"))
     if not foods:
-        raise ValueError("常用餐必须有文字描述")
+        raise ValueError("常用食物必须有文字描述")
 
     source_ai_run_id = payload.get("source_ai_run_id")
     if source_ai_run_id in {"", None}:
@@ -405,7 +405,7 @@ def mark_meal_template_used(template_id: int, *, user_email: str = "") -> dict:
             (template_id, user_email, user_email),
         )
         if cursor.rowcount == 0:
-            raise LookupError("常用餐不存在")
+            raise LookupError("常用食物不存在")
         row = fetch_meal_template_by_id(conn, template_id, user_email=user_email)
     return row_to_dict(row)
 
@@ -421,7 +421,7 @@ def delete_meal_template(template_id: int, *, user_email: str = "") -> None:
             (template_id, user_email, user_email),
         )
         if cursor.rowcount == 0:
-            raise LookupError("常用餐不存在")
+            raise LookupError("常用食物不存在")
 
 
 def fetch_meal_template_by_id(
@@ -453,7 +453,7 @@ def fetch_meal_template_by_id(
         (template_id, user_email, user_email),
     ).fetchone()
     if not row:
-        raise LookupError("常用餐不存在")
+        raise LookupError("常用食物不存在")
     return row
 
 
