@@ -30,22 +30,6 @@ CREATE TABLE IF NOT EXISTS meals (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS meal_templates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    meal_type TEXT,
-    location TEXT,
-    foods TEXT NOT NULL,
-    symptoms_after TEXT,
-    notes TEXT,
-    source_ai_run_id INTEGER REFERENCES ai_analysis_runs(id) ON DELETE SET NULL,
-    user_email TEXT,
-    used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
-    last_used_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS medication_products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_name TEXT NOT NULL,
@@ -128,7 +112,6 @@ CREATE TABLE IF NOT EXISTS ai_analysis_runs (
 
 CREATE INDEX IF NOT EXISTS idx_bowel_movements_occurred_at ON bowel_movements (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_meals_eaten_at ON meals (eaten_at);
-CREATE INDEX IF NOT EXISTS idx_meal_templates_usage ON meal_templates (used_count, last_used_at);
 CREATE INDEX IF NOT EXISTS idx_medication_products_name ON medication_products (product_name);
 CREATE INDEX IF NOT EXISTS idx_medications_taken_at ON medications (taken_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_started_at ON exercises (started_at);
@@ -148,13 +131,6 @@ AFTER UPDATE ON meals
 FOR EACH ROW
 BEGIN
     UPDATE meals SET updated_at = datetime('now') WHERE id = OLD.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_meal_templates_updated_at
-AFTER UPDATE ON meal_templates
-FOR EACH ROW
-BEGIN
-    UPDATE meal_templates SET updated_at = datetime('now') WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS trg_medications_updated_at

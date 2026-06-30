@@ -37,13 +37,9 @@ from .config import (
 )
 from .crud import (
     build_day_payload,
-    create_meal_template,
-    delete_meal_template,
     delete_record,
-    fetch_meal_templates,
     fetch_records,
     insert_record,
-    mark_meal_template_used,
     update_record,
 )
 from .db import get_connection, init_database
@@ -256,35 +252,6 @@ def register_routes(app: Flask) -> None:
             return jsonify(mark_ai_run_adopted(run_id, user_email=current_user_email()))
         except PermissionError as exc:
             return json_error(str(exc), HTTPStatus.FORBIDDEN)
-        except LookupError as exc:
-            return json_error(str(exc), HTTPStatus.NOT_FOUND)
-
-    @app.get("/api/meal-templates")
-    def api_meal_templates() -> Response:
-        return jsonify({"items": fetch_meal_templates(user_email=current_user_email())})
-
-    @app.post("/api/meal-templates")
-    def api_create_meal_template() -> Response:
-        try:
-            item = create_meal_template(read_json_body(), user_email=current_user_email())
-            return jsonify({"item": item}), HTTPStatus.CREATED
-        except (sqlite3.IntegrityError, ValueError) as exc:
-            return json_error(str(exc), HTTPStatus.BAD_REQUEST)
-
-    @app.post("/api/meal-templates/<int:template_id>/use")
-    def api_use_meal_template(template_id: int) -> Response:
-        try:
-            return jsonify(
-                {"item": mark_meal_template_used(template_id, user_email=current_user_email())}
-            )
-        except LookupError as exc:
-            return json_error(str(exc), HTTPStatus.NOT_FOUND)
-
-    @app.delete("/api/meal-templates/<int:template_id>")
-    def api_delete_meal_template(template_id: int) -> Response:
-        try:
-            delete_meal_template(template_id, user_email=current_user_email())
-            return jsonify({"ok": True})
         except LookupError as exc:
             return json_error(str(exc), HTTPStatus.NOT_FOUND)
 

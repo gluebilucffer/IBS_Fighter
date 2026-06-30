@@ -14,7 +14,6 @@ import {
   populateMealLocations,
   populateMedicationPickers,
   populateShortcuts,
-  renderMealTemplates,
   renderChecklist,
   renderList,
   renderSummary,
@@ -110,7 +109,6 @@ async function loadDay() {
   state.records = payload.records;
   state.medicationProducts = payload.medication_products || [];
   state.mealLocations = payload.meal_locations || [];
-  state.mealTemplates = payload.meal_templates || [];
   state.shortcuts = payload.shortcuts || {};
   state.checklist = payload.checklist || [];
   renderSummary(payload.summary);
@@ -187,9 +185,6 @@ document.addEventListener("click", async (event) => {
   const shortcutButton = event.target.closest("[data-shortcut-table]");
   const aiMealAnalyzeButton = event.target.closest("[data-ai-meal-analyze]");
   const aiMealApplyButton = event.target.closest("[data-ai-meal-apply]");
-  const mealTemplateSaveButton = event.target.closest("[data-meal-template-save]");
-  const mealTemplateUseButton = event.target.closest("[data-meal-template-use]");
-  const mealTemplateDeleteButton = event.target.closest("[data-meal-template-delete]");
   const aiReportInsightsButton = event.target.closest("[data-ai-report-insights]");
   const reportModuleButton = event.target.closest("[data-report-module]");
   const reportRangeButton = event.target.closest("[data-report-days]");
@@ -229,18 +224,6 @@ document.addEventListener("click", async (event) => {
 
   if (aiMealApplyButton) {
     applyMealAnalysis(aiMealApplyButton).catch((error) => showToast(error.message));
-  }
-
-  if (mealTemplateSaveButton) {
-    saveMealTemplate(mealTemplateSaveButton).catch((error) => showToast(error.message));
-  }
-
-  if (mealTemplateUseButton) {
-    useMealTemplate(mealTemplateUseButton).catch((error) => showToast(error.message));
-  }
-
-  if (mealTemplateDeleteButton) {
-    deleteMealTemplate(mealTemplateDeleteButton).catch((error) => showToast(error.message));
   }
 
   if (aiReportInsightsButton) {
@@ -397,9 +380,6 @@ function renderMealAnalysis(analysis, runId = "") {
         <button type="button" data-ai-meal-apply data-run-id="${escapeHtml(String(runId || ""))}" data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
           应用到文字描述
         </button>
-        <button class="ghost" type="button" data-meal-template-save data-run-id="${escapeHtml(String(runId || ""))}" data-foods="${escapeHtml(foodsText)}" data-meal-type="${escapeHtml(analysis.meal_type_guess || "")}">
-          保存为常用食物
-        </button>
       </div>
     </div>
   `;
@@ -429,116 +409,6 @@ async function applyMealAnalysis(button) {
     });
   }
   showToast("已应用识别结果，请检查后保存");
-}
-
-
-async function saveMealTemplate(button) {
-  const form = document.querySelector('[data-form="meals"]');
-  if (!form) return;
-
-  const payload = mealTemplatePayloadFromForm(button);
-  button.disabled = true;
-  const originalText = button.textContent;
-  button.textContent = "保存中...";
-  try {
-    const response = await requestJson("/api/meal-templates", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    await refreshMealTemplates();
-    const runId = button.dataset.runId || "";
-    if (runId) {
-      await requestJson(`/api/ai/runs/${encodeURIComponent(runId)}/adopt`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-    }
-    showToast(`已保存常用食物：${response.item?.name || payload.foods}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-}
-
-
-function mealTemplatePayloadFromForm(button) {
-  const form = document.querySelector('[data-form="meals"]');
-  const foods = (button.dataset.foods || getFormControl(form, "foods")?.value || "").trim();
-  if (!foods) {
-    throw new Error("请先填写或识别饮食描述");
-  }
-  const mealType = button.dataset.mealType || getCheckedValue(form, "meal_type");
-  const runId = button.dataset.runId || "";
-  return {
-    foods,
-    meal_type: mealType && mealType !== "不确定" ? mealType : null,
-    location: getFormControl(form, "location")?.value.trim() || null,
-    symptoms_after: getFormControl(form, "symptoms_after")?.value.trim() || null,
-    notes: getFormControl(form, "notes")?.value.trim() || null,
-    source_ai_run_id: runId || null,
-  };
-}
-
-
-async function useMealTemplate(button) {
-  const id = Number(button.dataset.id);
-  const response = await requestJson(`/api/meal-templates/${encodeURIComponent(id)}/use`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
-  appendMealTemplate(response.item || state.mealTemplates.find((item) => Number(item.id) === id));
-  await refreshMealTemplates();
-  showToast("已添加常用食物，请检查后保存");
-}
-
-
-function appendMealTemplate(template) {
-  const form = document.querySelector('[data-form="meals"]');
-  if (!form || !template) return;
-  const idControl = getFormControl(form, "id");
-  if (idControl) idControl.value = "";
-  appendControlLine(form, "foods", template.foods || "");
-  fillControlIfEmpty(form, "location", template.location || "");
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-
-async function deleteMealTemplate(button) {
-  const id = Number(button.dataset.id);
-  const confirmed = window.confirm("确定删除这个常用食物模板吗？历史饮食记录不会删除。");
-  if (!confirmed) return;
-  await requestJson(`/api/meal-templates/${encodeURIComponent(id)}`, { method: "DELETE" });
-  await refreshMealTemplates();
-  showToast("常用食物已删除");
-}
-
-
-async function refreshMealTemplates() {
-  const response = await requestJson("/api/meal-templates");
-  state.mealTemplates = response.items || [];
-  renderMealTemplates(state.mealTemplates);
-}
-
-
-function fillControlIfEmpty(form, name, value) {
-  const control = getFormControl(form, name);
-  if (control && !control.value.trim() && value) {
-    control.value = value;
-  }
-}
-
-
-function appendControlLine(form, name, value) {
-  const control = getFormControl(form, name);
-  const text = String(value || "").trim();
-  if (!control || !text) return;
-  const current = control.value.trim();
-  control.value = current ? `${current}\n${text}` : text;
-}
-
-
-function getCheckedValue(form, name) {
-  return [...form.querySelectorAll(`[name="${name}"]`)].find((control) => control.checked)?.value || "";
 }
 
 

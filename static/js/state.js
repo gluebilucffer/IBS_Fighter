@@ -3,7 +3,6 @@ export const state = {
   records: {},
   medicationProducts: [],
   mealLocations: [],
-  mealTemplates: [],
   shortcuts: {},
   checklist: [],
   reportDays: 7,

@@ -66,7 +66,6 @@ def migrate_database(conn: sqlite3.Connection) -> None:
     ensure_time_metadata_columns(conn, "body_weights")
     ensure_hemorrhoid_events_table(conn)
     ensure_time_metadata_columns(conn, "hemorrhoid_events")
-    ensure_meal_templates_table(conn)
     ensure_ai_analysis_runs_table(conn)
     backfill_medication_units(conn)
     drop_sleep_module(conn)
@@ -146,44 +145,6 @@ def ensure_hemorrhoid_events_table(conn: sqlite3.Connection) -> None:
         FOR EACH ROW
         BEGIN
             UPDATE hemorrhoid_events SET updated_at = datetime('now') WHERE id = OLD.id;
-        END;
-        """
-    )
-
-
-def ensure_meal_templates_table(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS meal_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            meal_type TEXT,
-            location TEXT,
-            foods TEXT NOT NULL,
-            symptoms_after TEXT,
-            notes TEXT,
-            source_ai_run_id INTEGER REFERENCES ai_analysis_runs(id) ON DELETE SET NULL,
-            user_email TEXT,
-            used_count INTEGER NOT NULL DEFAULT 0 CHECK (used_count >= 0),
-            last_used_at TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-        """
-    )
-    conn.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_meal_templates_usage
-        ON meal_templates (used_count, last_used_at)
-        """
-    )
-    conn.execute(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_meal_templates_updated_at
-        AFTER UPDATE ON meal_templates
-        FOR EACH ROW
-        BEGIN
-            UPDATE meal_templates SET updated_at = datetime('now') WHERE id = OLD.id;
         END;
         """
     )

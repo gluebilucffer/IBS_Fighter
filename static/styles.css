@@ -700,30 +700,10 @@ textarea:focus {
   gap: 7px;
 }
 
-.shortcut-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
 .shortcut-block > span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 690;
-}
-
-.shortcut-heading > span {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 690;
-}
-
-.shortcut-heading button {
-  min-height: 32px;
-  padding: 6px 10px;
-  font-size: 12px;
 }
 
 .shortcut-list {
@@ -764,81 +744,12 @@ textarea:focus {
   font-size: 12px;
 }
 
-.meal-template-block {
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fffdfa;
-}
-
-.meal-template-list {
-  display: grid;
-  gap: 8px;
-}
-
-.meal-template-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--primary-soft);
-  border-radius: 8px;
-  background: var(--surface-tint);
-}
-
-.meal-template-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.meal-template-copy strong,
-.meal-template-copy p,
-.meal-template-copy small {
-  overflow-wrap: anywhere;
-}
-
-.meal-template-copy strong {
-  color: var(--primary-dark);
-  font-size: 14px;
-}
-
-.meal-template-copy small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.meal-template-copy p {
-  margin: 0;
-  color: #35423e;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.meal-template-copy .meal-template-location {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 720;
-}
-
-.meal-template-copy .meal-template-food {
-  color: #24332f;
-}
-
-.meal-template-actions,
 .ai-meal-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.meal-template-actions {
-  justify-content: flex-end;
-}
-
-.meal-template-actions button,
 .ai-meal-actions button {
   min-height: 34px;
   padding: 7px 10px;
@@ -2071,21 +1982,6 @@ textarea:focus {
     grid-column: 2;
   }
 
-  .shortcut-heading,
-  .meal-template-card {
-    align-items: stretch;
-    grid-template-columns: 1fr;
-  }
-
-  .shortcut-heading {
-    display: grid;
-  }
-
-  .shortcut-heading button {
-    width: 100%;
-  }
-
-  .meal-template-actions button,
   .ai-meal-actions button {
     flex: 1 1 120px;
   }

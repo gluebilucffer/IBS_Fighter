@@ -136,43 +136,6 @@ export function populateShortcuts() {
   renderShortcutButtons("bowel_locations", shortcuts.bowel_locations || [], "bowel_movements", "location");
   renderShortcutButtons("exercise_types", shortcuts.exercise_types || [], "exercises", "activity_type");
   renderMealTextButtons(shortcuts.meal_texts || []);
-  renderMealTemplates(state.mealTemplates || []);
-}
-
-
-export function renderMealTemplates(items = []) {
-  const container = document.querySelector("[data-meal-template-list]");
-  if (!container) return;
-  container.innerHTML = "";
-
-  if (!items.length) {
-    const empty = document.createElement("small");
-    empty.className = "shortcut-empty";
-    empty.textContent = "暂无常用食物";
-    container.append(empty);
-    return;
-  }
-
-  items.forEach((item) => {
-    const card = document.createElement("article");
-    card.className = "meal-template-card";
-    const meta = [item.meal_type, item.used_count ? `已用 ${item.used_count} 次` : ""]
-      .filter(Boolean)
-      .join(" · ");
-    card.innerHTML = `
-      <div class="meal-template-copy">
-        <strong>${escapeHtml(item.name || "常用食物")}</strong>
-        <small>${escapeHtml(meta || "点击添加到文字描述")}</small>
-        <p class="meal-template-location">${escapeHtml(item.location || "地点未设置")}</p>
-        <p class="meal-template-food">${escapeHtml(item.foods || "")}</p>
-      </div>
-      <div class="meal-template-actions">
-        <button type="button" data-meal-template-use data-id="${item.id}">添加</button>
-        <button class="danger" type="button" data-meal-template-delete data-id="${item.id}">删除</button>
-      </div>
-    `;
-    container.append(card);
-  });
 }
 
 
